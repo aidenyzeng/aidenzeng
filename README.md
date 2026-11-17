@@ -42,3 +42,9 @@ The anatomy is a procedural reconstruction of one reference image and should not
 Mesh generation also checks that the body has no open boundary edges, preventing clipped head caps when the character grows beyond old extraction bounds.
 
 Surface rendering now uses a denser skin mesh, a displacement filter and three normal-smoothing passes. Eyes and nails use coherent attachment frames and render separately from the refracted interior, preventing duplicate images and distorted details. Nail placement searches the complete body depth; mesh checks verify that nail roots lie on the skin and their rest geometry clears the floor. The reference physics section remains unchanged.
+
+### Mouth, tongue and hand detail refinement
+
+The render surface now uses a 0.024 grid and supports device pixel ratios up to 2. The cavity has a narrow antialiased lip transition, and the purple tongue mask follows the same smooth-union field as its flatter, broader geometry. The tongue clears the arm; the former head claws are rooted at the hanging hand tip. Cached assets have a revision query so existing browser sessions pick up the changes.
+
+Verified: closed mesh (88,268 body triangles), all claw roots on limbs, exact reference solver retained, stable grab/release and floor contact (99.49% recovered volume), no browser errors. Screenshot: `review/mouth-tongue-hand-fix.png`.

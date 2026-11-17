@@ -18,6 +18,7 @@ function checkMesh(mesh) {
     assert(detail.v0 >= 0 && detail.v0 + detail.nv <= rest.length / 3, 'Invalid detail attachment range');
     assert(detail.anchor.length === 3 && detail.anchor.every(Number.isFinite), 'Invalid detail anchor');
     if (mesh.renderMesh.mat[detail.v0] === 5) {
+      assert(detail.anchor[0] > 0, 'Claw attached to the head instead of a hand or foot');
       assert(Math.abs(detail.surfaceDistance) < .002, 'Claw root does not sit on the body surface');
       for (let v = detail.v0; v < detail.v0 + detail.nv; v++) assert(rest[v * 3 + 1] >= .03, 'Claw intersects the floor in its rest pose');
     }

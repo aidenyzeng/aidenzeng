@@ -212,7 +212,8 @@ const BLOW = [SHAPE.blow.x, topAt(SHAPE.blow.x) - 0.003, SHAPE.blow.z];
 const GUARD = [SHAPE.guard.x, topAt(SHAPE.guard.x) - 0.012, 0];
 
 function bodyFlat(x, y, z) { return smax(bodyRaw(x, y, z), -y, SHAPE.floorK); }
-function tongueSD(x,y,z){return smin(sdEllipsoid(x+.29,y-1.02,z-.68,.14,.20,.14),smin(sdEllipsoid(x+.22,y-.90,z-.81,.22,.23,.16),sdEllipsoid(x+.15,y-.76,z-.91,.25,.23,.16),.10),.12);}
+// A narrow rooted neck opens into a broad, flattened, rounded tongue tip.
+function tongueSD(x,y,z){return smin(sdEllipsoid(x+.31,y-1.08,z-.64,.13,.18,.13),smin(sdEllipsoid(x+.28,y-.91,z-.78,.19,.24,.11),sdEllipsoid(x+.20,y-.79,z-.88,.25,.22,.10),.075),.085);}
 function nailongSolid(x,y,z){
  let d=sdEllipsoid(x+.79,y-.86,z-.03,1.02,.93,.73);
  d=smin(d,sdEllipsoid(x-.69,y-.76,z+.12,1.04,.77,.55),.09);
@@ -443,7 +444,7 @@ const KRILL = (() => {
 // material ids: 0 body (clear jelly), 1 a drop of the spout, 2 eye, 3 the milky layer, 4 bubble, 5 baleen, 6 krill
 const SPOUT_POOL = 72;
 function buildRenderMesh(){
- const nets=surfaceNets(whaleSD,[-1.97,-.12,-.87,1.92,1.97,1.31],.030);
+ const nets=surfaceNets(whaleSD,[-1.97,-.12,-.87,1.92,1.97,1.31],.024);
  const pos=nets.pos.slice(),nrm=nets.nrm.slice(),mat=new Array(pos.length/3).fill(0),idx=nets.idx.slice(),ctr=new Array(pos.length/3*4).fill(0);
  const add=(x,y,z,m,nx,ny,nz,c=null)=>{pos.push(x,y,z);nrm.push(nx,ny,nz);mat.push(m);ctr.push(...(c||[0,0,0,0]));return pos.length/3-1;};
  const bodyIndexCount=idx.length,bodyVertCount=pos.length/3,propStart=idx.length;
@@ -484,7 +485,7 @@ function buildRenderMesh(){
    oval([x-.063,y+dy,z+.036],[.044,.063,.009],2,eyeAnchor);
    oval([x-.079,y+dy+.025,z+.046],[.012,.017,.007],7,eyeAnchor);
  }
- for(const [cx,cy,n] of [[1.55,.15,3],[1.61,.48,3],[-1.20,.09,2],[.20,.09,2]])for(let i=0;i<n;i++){
+ for(const [cx,cy,n] of [[1.55,.15,3],[1.61,.48,3],[.22,.63,2],[.20,.09,2]])for(let i=0;i<n;i++){
    const x=cx+(i-(n-1)/2)*.073,z=clawSurfaceZ(x,cy);if(z===null)continue;
    oval([x,cy,z+.012],[.030,.030,.060],5,[x,cy,z]);
  }
@@ -1685,6 +1686,14 @@ vec3 bumpNormal(vec3 N, vec3 P, float h) {
   return normalize(abs(det) * N - g);
 }
 
+float tongueEllipsoid(vec3 p,vec3 r) {
+  float k0=length(p/r),k1=length(p/(r*r));
+  return k0*(k0-1.0)/max(k1,1e-6);
+}
+float tongueUnion(float a,float b,float k) {
+  float h=clamp(.5+.5*(b-a)/k,0.0,1.0);
+  return mix(b,a,h)-k*h*(1.0-h);
+}
 void main() {
   vec3 N = normalize(vN);
   if (!gl_FrontFacing) N = -N;
@@ -1695,10 +1704,14 @@ void main() {
 
   vec3 Q=vRest;
   float mouth=0.0,blowM=0.0,pleat=0.0,mot=0.0;
-  float tongueField=min(length((Q-vec3(-.29,1.02,.68))/vec3(.14,.20,.14))-1.0,min(length((Q-vec3(-.22,.90,.81))/vec3(.22,.23,.16))-1.0,length((Q-vec3(-.15,.76,.91))/vec3(.25,.23,.16))-1.0));
-  float tongueMask=1.0-smoothstep(.15,.6,tongueField);
+  // Match the geometry so the purple colour follows the tongue's actual rim.
+  float tongueField=tongueUnion(tongueEllipsoid(Q-vec3(-.31,1.08,.64),vec3(.13,.18,.13)),tongueUnion(tongueEllipsoid(Q-vec3(-.28,.91,.78),vec3(.19,.24,.11)),tongueEllipsoid(Q-vec3(-.20,.79,.88),vec3(.25,.22,.10)),.075),.085);
+  float tongueAA=max(fwidth(tongueField),.0006);
+  float tongueMask=1.0-smoothstep(.008-tongueAA,.018+tongueAA,tongueField);
   float cavityField=(length((Q-vec3(-.25,.83,.77))/vec3(.28,.49,.30))-1.0)*.28;
-  float cavityMask=(1.0-smoothstep(.012,.045,abs(cavityField)))*(1.0-tongueMask);
+  // A narrow, pixel-antialiased lip transition keeps the cavity crisp at close range.
+  float lipAA=max(fwidth(cavityField),.0006);
+  float cavityMask=(1.0-smoothstep(.003-lipAA,.007+lipAA,cavityField))*(1.0-tongueMask);
   N=bumpNormal(N,P,(vnoise(Q*46.0)-.5)*.0003);
   float NdV=max(dot(N,V),1e-3);
   // ── thickness along the view ray: to the back faces, or to whatever sits inside (milk, a bubble, the krill) ──
@@ -2094,7 +2107,7 @@ async function main() {
 
   // ── build everything once ──
   let cached;
-  try{cached=await fetch('./nailong-mesh.json').then(r=>{if(!r.ok)throw Error('mesh cache unavailable');return r.json();});}catch{cached={simMesh:buildSimMesh(.24),renderMesh:buildRenderMesh()};}
+  try{cached=await fetch('./nailong-mesh.json?v=mouth-hand-4').then(r=>{if(!r.ok)throw Error('mesh cache unavailable');return r.json();});}catch{cached={simMesh:buildSimMesh(.24),renderMesh:buildRenderMesh()};}
   const simMesh=cached.simMesh,renderMesh=cached.renderMesh;
   simMesh.rest=new Float32Array(simMesh.rest);simMesh.tets=new Uint32Array(simMesh.tets);simMesh.region=new Uint8Array(simMesh.region);
   for(const key of ['rest','restNormal','mat','ctr'])renderMesh[key]=new Float32Array(renderMesh[key]);renderMesh.index=new Uint32Array(renderMesh.index);
@@ -2363,7 +2376,7 @@ async function main() {
   // ── resize ──
   function resize() {
     const r = canvas.getBoundingClientRect();
-    const dpr = Math.min(window.devicePixelRatio || 1, window.__fixPR || 1.5);
+    const dpr = Math.min(window.devicePixelRatio || 1, window.__fixPR || 2);
     renderer.resize(r.width * dpr, r.height * dpr, r.width, r.height, dpr);
   }
   const stacked = matchMedia('(max-width: 860px), (max-height: 560px) and (max-width: 1000px)');

@@ -40,3 +40,5 @@ Latest result: 852 nodes, 2,705 tetrahedra; volume 99.24% at rest, 100.19% held,
 The anatomy is a procedural reconstruction of one reference image and should not be described as pixel-identical. The original artifact source is preserved in `review/blue-whale-reference.js` for source-equivalence verification.
 
 Mesh generation also checks that the body has no open boundary edges, preventing clipped head caps when the character grows beyond old extraction bounds.
+
+Surface rendering now uses a denser skin mesh, a displacement filter and three normal-smoothing passes. Eyes and nails use coherent attachment frames and render separately from the refracted interior, preventing duplicate images and distorted details. Nail placement searches the complete body depth; mesh checks verify that nail roots lie on the skin and their rest geometry clears the floor. The reference physics section remains unchanged.

@@ -443,7 +443,7 @@ const KRILL = (() => {
 // material ids: 0 body (clear jelly), 1 a drop of the spout, 2 eye, 3 the milky layer, 4 bubble, 5 baleen, 6 krill
 const SPOUT_POOL = 72;
 function buildRenderMesh(){
- const nets=surfaceNets(whaleSD,[-1.97,-.12,-.87,1.92,1.97,1.31],.043);
+ const nets=surfaceNets(whaleSD,[-1.97,-.12,-.87,1.92,1.97,1.31],.030);
  const pos=nets.pos.slice(),nrm=nets.nrm.slice(),mat=new Array(pos.length/3).fill(0),idx=nets.idx.slice(),ctr=new Array(pos.length/3*4).fill(0);
  const add=(x,y,z,m,nx,ny,nz,c=null)=>{pos.push(x,y,z);nrm.push(nx,ny,nz);mat.push(m);ctr.push(...(c||[0,0,0,0]));return pos.length/3-1;};
  const bodyIndexCount=idx.length,bodyVertCount=pos.length/3,propStart=idx.length;
@@ -472,15 +472,22 @@ function buildRenderMesh(){
     return { v0: base, nv: pos.length / 3 - base };
   };
 
- const oval=(p,r,m)=>ovoid(p,[1,0,0],[0,1,0],[0,0,1],r[0],r[2],r[1],m,14,24,[...p,Math.max(...r)]);
+ // A rear toe may lie entirely behind z=0; search the full body depth.
+ function clawSurfaceZ(x,y){let outside=1.3;for(let z=1.29;z>=-.9;z-=.01){if(whaleSD(x,y,z)<0){let inside=z;for(let i=0;i<20;i++){const mid=(inside+outside)*.5;if(whaleSD(x,y,mid)<0)inside=mid;else outside=mid;}return (inside+outside)*.5;}outside=z;}return null;}
+ const surfaceDetails=[];
+ const oval=(p,r,m,anchor=p)=>{const o=ovoid(p,[1,0,0],[0,1,0],[0,0,1],r[0],r[2],r[1],m,m===4?10:18,m===4?16:32,[...p,Math.max(...r)]);if([2,5,7,8].includes(m))surfaceDetails.push({...o,anchor:anchor.slice(),surfaceDistance:whaleSD(...anchor)});return o;};
  for(const [x,y,dy] of [[-1.00,1.22,-.047],[-.95,.57,.047]]){
    const z=surfaceOut(x,y)[2]-.006;
-   oval([x,y,z],[.105,.140,.025],7);
-   oval([x-.042,y+dy,z+.022],[.074,.085,.014],8);
-   oval([x-.063,y+dy,z+.036],[.044,.063,.009],2);
-   oval([x-.079,y+dy+.025,z+.046],[.012,.017,.007],7);
+   const eyeAnchor=[x,y,z];
+   oval([x,y,z],[.105,.140,.025],7,eyeAnchor);
+   oval([x-.042,y+dy,z+.022],[.074,.085,.014],8,eyeAnchor);
+   oval([x-.063,y+dy,z+.036],[.044,.063,.009],2,eyeAnchor);
+   oval([x-.079,y+dy+.025,z+.046],[.012,.017,.007],7,eyeAnchor);
  }
- for(const [cx,cy,cz,n] of [[1.55,.15,.32,3],[1.61,.48,-.04,3],[-1.20,.035,.25,2],[.20,.06,.16,2]])for(let i=0;i<n;i++)oval([cx+(i-(n-1)/2)*.073,cy,cz],[.035,.036,.049],5);
+ for(const [cx,cy,n] of [[1.55,.15,3],[1.61,.48,3],[-1.20,.09,2],[.20,.09,2]])for(let i=0;i<n;i++){
+   const x=cx+(i-(n-1)/2)*.073,z=clawSurfaceZ(x,cy);if(z===null)continue;
+   oval([x,cy,z+.012],[.030,.030,.060],5,[x,cy,z]);
+ }
  const R=rng(5858),bubbles=[];for(let tries=0;bubbles.length<28&&tries<5000;tries++){const p=[-1.5+R()*3.1,.12+R()*1.4,-.45+R()*1.1],r=.009+.012*R();if(whaleSD(...p)<-.08&&coreSD(...p)>.05&&tongueSD(...p)>.02){bubbles.push([...p,r]);oval(p,[r,r,r],4);}}
   // ── the krill: tiny pink beads, hidden until a gulp, then carried along their paths ──
   const krillV0 = pos.length / 3, krill = [];
@@ -521,7 +528,7 @@ function buildRenderMesh(){
     body: { first: 0, count: bodyIndexCount },
     core: coreRange,
     seeds: { first: propStart, count: propCount },
-    bodyVertCount, drops, home, krill, krillV0,
+    bodyVertCount, drops, home, krill, krillV0, surfaceDetails,
     bubbleCount: bubbles.length, baleenCount: BALEEN.length * 2,
   };
 }
@@ -1899,10 +1906,11 @@ class Renderer {
       shadow: mat(GLSL_POS_VS, GLSL_SHADOW_FS, { side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 2 }),
       height: mat(GLSL_POS_VS, GLSL_HEIGHT_FS, { side: THREE.DoubleSide }),
       floor: mat(GLSL_FULL_VS, GLSL_FLOOR_FS, { depthTest: false, depthWrite: false }),
-      props: mat(GLSL_MESH_VS, GLSL_PROPS_FS),
+      props: mat(GLSL_MESH_VS, GLSL_PROPS_FS.replace('int m = int(vMat + 0.5);','int m = int(vMat + 0.5); if(m==2||m==5||m==7||m==8) discard;')),
+      details: mat(GLSL_MESH_VS, GLSL_PROPS_FS.replace('int m = int(vMat + 0.5);','int m = int(vMat + 0.5); if(!(m==2||m==5||m==7||m==8)) discard;')),
       back: mat(GLSL_POS_VS, GLSL_BACK_FS, { side: THREE.BackSide }),
       copy: mat(GLSL_FULL_VS, GLSL_COPY_FS, { depthTest: false, depthWrite: false }),
-      depth: mat(GLSL_POS_VS, 'void main() { gl_FragColor = vec4(0.0); }', { colorWrite: false }),
+      depth: mat(GLSL_MESH_VS, 'varying float vMat; void main() { int m=int(vMat+.5); if(m==2||m==5||m==7||m==8)discard; gl_FragColor=vec4(0.0); }', { colorWrite: false }),
       jelly: mat(GLSL_MESH_VS, GLSL_JELLY_FS),
       lines: mat(GLSL_LINE_VS, GLSL_LINE_FS, {
         transparent: true, depthTest: false, depthWrite: false, blending: THREE.CustomBlending,
@@ -1921,6 +1929,7 @@ class Renderer {
     add(this.mainScene, fullscreen, M.copy, 0);
     add(this.mainScene, gProps, M.depth, 1);
     add(this.mainScene, gBody, M.jelly, 2);
+    add(this.mainScene, gProps, M.details, 3);
     this.lines = add(this.mainScene, gLines, M.lines, 5, THREE.LineSegments);
     this.postScene = new THREE.Scene(); add(this.postScene, fullscreen, M.post, 0);
     for (const s of [this.shadowScene, this.heightScene, this.sceneScene, this.backScene, this.mainScene, this.postScene]) s.matrixWorldAutoUpdate = false;
@@ -2175,6 +2184,11 @@ async function main() {
   // ── skinning: the jelly, the milky layer, the eyes, the baleen and the bubbles follow their tetrahedra;
   //    a loose drop is rigid; a drop not yet blown waits, folded to a point, under the blowholes;
   //    a piece of krill rides along its path, between the points of it that ride the jelly ──
+  const surfaceAdj=Array.from({length:kv0},()=>new Set());
+  for(const [first,end] of [[0,bodyTriEnd],[coreFirst,coreEnd]])for(let t=first;t<end;t+=3){const a=index[t],b=index[t+1],c=index[t+2];surfaceAdj[a].add(b).add(c);surfaceAdj[b].add(a).add(c);surfaceAdj[c].add(a).add(b);}
+  const smoothVertices=[];surfaceAdj.forEach((n,i)=>{if(n.size)smoothVertices.push(i);});
+  const displacementA=new Float32Array(kv0*3),displacementB=new Float32Array(kv0*3);
+  const detailFrames=(renderMesh.surfaceDetails||[]).map(detail=>{let nearest=0,best=Infinity;for(let v=0;v<renderMesh.bodyVertCount;v++){const k=v*3,d=(renderMesh.rest[k]-detail.anchor[0])**2+(renderMesh.rest[k+1]-detail.anchor[1])**2+(renderMesh.rest[k+2]-detail.anchor[2])**2;if(d<best){nearest=v;best=d;}}return {...detail,nearest,tet:emb.tetOf[nearest]};});
   const nsm = new Float32Array(kv0 * 3);
   const kp = [0, 0, 0], ka = [0, 0, 0], kb = [0, 0, 0];
   const krillAt = (i, t, out) => {
@@ -2233,6 +2247,12 @@ async function main() {
       }
       dyn[o + 3] = 0; dyn[o + 4] = 0; dyn[o + 5] = 0;
     }
+    for(const v of smoothVertices){const k=v*3,o=v*D;for(let a=0;a<3;a++)displacementA[k+a]=dyn[o+a]-renderMesh.rest[k+a];}
+    for(let pass=0;pass<2;pass++){
+      for(const v of smoothVertices){const k=v*3,n=surfaceAdj[v];for(let a=0;a<3;a++){let sum=0;for(const j of n)sum+=displacementA[j*3+a];displacementB[k+a]=displacementA[k+a]*.55+sum/n.size*.45;}}
+      for(const v of smoothVertices){const k=v*3;displacementA[k]=displacementB[k];displacementA[k+1]=displacementB[k+1];displacementA[k+2]=displacementB[k+2];}
+    }
+    for(const v of smoothVertices){const k=v*3,o=v*D;for(let a=0;a<3;a++)dyn[o+a]=renderMesh.rest[k+a]+displacementA[k+a];}
     for (let t = 0; t < index.length; t += 3) {
       const a = D * index[t], b = D * index[t + 1], c = D * index[t + 2];
       const e1x = dyn[b] - dyn[a], e1y = dyn[b + 1] - dyn[a + 1], e1z = dyn[b + 2] - dyn[a + 2];
@@ -2260,10 +2280,15 @@ async function main() {
       }
     };
     kLast = -1;
-    smooth(0, bodyTriEnd); smooth(coreFirst, coreEnd);
-    for (let v = 0; v < kv0; v++) {
-      const k = 3 * v, l = Math.hypot(nsm[k], nsm[k + 1], nsm[k + 2]);
-      if (l > 1e-9) { dyn[D * v + 3] = nsm[k] / l; dyn[D * v + 4] = nsm[k + 1] / l; dyn[D * v + 5] = nsm[k + 2] / l; }
+    for(let pass=0;pass<3;pass++){
+      nsm.fill(0);smooth(0,bodyTriEnd);smooth(coreFirst,coreEnd);
+      for(const v of smoothVertices){const k=v*3,l=Math.hypot(nsm[k],nsm[k+1],nsm[k+2]);if(l>1e-9){dyn[D*v+3]=nsm[k]/l;dyn[D*v+4]=nsm[k+1]/l;dyn[D*v+5]=nsm[k+2]/l;}}
+    }
+    for(const f of detailFrames){
+      const q=f.tet*4,qx=sim.tetRot[q],qy=sim.tetRot[q+1],qz=sim.tetRot[q+2],qw=sim.tetRot[q+3];
+      const center=f.anchor.map((v,a)=>v+displacementA[f.nearest*3+a]);
+      const rotate=(x,y,z)=>{const tx=2*(qy*z-qz*y),ty=2*(qz*x-qx*z),tz=2*(qx*y-qy*x);return [x+qw*tx+qy*tz-qz*ty,y+qw*ty+qz*tx-qx*tz,z+qw*tz+qx*ty-qy*tx];};
+      for(let v=f.v0;v<f.v0+f.nv;v++){const k=v*3,o=v*D,p=rotate(renderMesh.rest[k]-f.anchor[0],renderMesh.rest[k+1]-f.anchor[1],renderMesh.rest[k+2]-f.anchor[2]),n=rotate(renderMesh.restNormal[k],renderMesh.restNormal[k+1],renderMesh.restNormal[k+2]);for(let a=0;a<3;a++){dyn[o+a]=center[a]+p[a];dyn[o+3+a]=n[a];}dyn[o+6]=center[0];dyn[o+7]=center[1];dyn[o+8]=center[2];}
     }
   }
 

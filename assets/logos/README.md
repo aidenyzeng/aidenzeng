@@ -1,5 +1,8 @@
 Experience icons
 
-Karat: official apple-touch icon from trykarat.com, displayed inverted to match the black tile in the supplied reference.
-Badminton Canada: official club logo from badminton.ca (content.tournamentsoftware.com).
-BETA Camp: SVG recreation of the older blue circular mark in the user-supplied reference; the original application-page image download was unavailable.
+Current assets:
+- karat.svg: vector rendering of the geometry in Karat’s official icon.
+- beta-camp-reference.png: the 200×200 original logo supplied by the user.
+- badminton-canada-hq.jpg: original 240×180 club logo from https://content.tournamentsoftware.com/images/club/B4A28EDB-DF73-4EA3-B320-11FC5CF738B0.jpg, linked by badminton.ca.
+
+Earlier lower-resolution assets are retained but are no longer displayed.

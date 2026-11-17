@@ -126,6 +126,9 @@
   .experience-row { display: grid; grid-template-columns: 32px 1fr; gap: 12px; padding: 9px 0 10px; border-top: 1px solid var(--line); }
   .experience-logo { display: block; width: 32px; height: 32px; object-fit: contain; margin-top: 1px; border: 1px solid var(--line); border-radius: 5px; background: #fff; }
   .experience h3 { margin: 0 0 4px; font: italic 400 19px/1.15 var(--serif); letter-spacing: -.015em; }
+  .experience-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; column-gap: 16px; margin-bottom: 4px; }
+  .experience-heading h3 { margin-bottom: 0; }
+  .experience-date { font: 10px/1.4 var(--mono); color: var(--muted); white-space: nowrap; }
   .experience p { margin: 0; font: 14px/1.4 var(--serif); color: var(--body-ink); }
   .experience strong { font-weight: 600; color: var(--ink); }
   .outside-label { margin: 6px 0 9px; }
@@ -255,12 +258,12 @@
     <h2 class="label experience-label">A few things I’ve done</h2>
     <article class="experience-row">
       <img class="experience-logo karat-logo" src="./assets/logos/karat.svg" alt="Karat Financial logo" width="32" height="32">
-      <div><h3>Growth @ Karat Financial</h3>
+      <div><div class="experience-heading"><h3>Growth @ Karat Financial</h3><span class="experience-date">2025–2026</span></div>
       <p>Helped grow a community of <strong>2,000+ creators</strong> reaching <strong>50M+ combined followers</strong>, contributed to <strong>$10M+ in client deposits</strong>, and turned cold outreach into <strong>50+ signed partnerships</strong>.</p></div>
     </article>
     <article class="experience-row">
       <img class="experience-logo" src="./assets/logos/beta-camp-reference.png" alt="BETA Camp logo" width="32" height="32">
-      <div><h3>Winner @ BETA Camp</h3>
+      <div><div class="experience-heading"><h3>Winner @ BETA Camp</h3><span class="experience-date">2025</span></div>
       <p>Built preppin, an AI nutrition coach that reached <strong>four figures in revenue</strong>, <strong>50+ customers</strong>, and <strong>10,000+ visits during launch week</strong> — then won <strong>$10,000 in equity-free funding</strong>.</p></div>
     </article>
     <h2 class="label experience-label outside-label">Outside of work</h2>

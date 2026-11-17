@@ -1,7 +1,7 @@
 <!doctype html>
 <html style="--accent: #3a8ef0; --glow: #ff6f5e;"><head><!-- frame-runtime --><!-- /frame-runtime --><meta charset="utf8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body class="ready">
-<title>Nailong Jelly</title>
-<meta name="description" content="Nailong in clear golden jelly, using the Blue Whale Jelly artifact physics and rendering engine.">
+<title>Aiden Zeng</title>
+<meta name="description" content="Aiden Zeng — growth at Karat Financial, building preppin, and competing nationally in badminton. A personal site with a little jelly.">
 <style>
   :root {
     --bg: #E2DFDA;
@@ -120,6 +120,26 @@
   .stats dd small { font: 11px/1 var(--sans); color: var(--muted); letter-spacing: .02em; margin-left: 3px; }
   .footnote { margin: 9px 0 0; font-size: 11px; color: var(--faint); max-width: 400px; }
 
+  /* Personal highlights use the same specimen typography and fine rules. */
+  .experience { width: min(670px, calc(100vw - 380px)); max-width: none; }
+  .experience-label { margin: 0 0 10px; font-weight: 500; font-size: 9.5px; }
+  .experience-row { display: grid; grid-template-columns: 24px 1fr; gap: 10px; padding: 9px 0 10px; border-top: 1px solid var(--line); }
+  .experience-number { padding-top: 4px; font: 10px/1 var(--mono); color: var(--faint); }
+  .experience h3 { margin: 0 0 4px; font: italic 400 19px/1.15 var(--serif); letter-spacing: -.015em; }
+  .experience p { margin: 0; font: 14px/1.4 var(--serif); color: var(--body-ink); }
+  .experience strong { font-weight: 600; color: var(--ink); }
+  .outside-label { margin: 6px 0 9px; }
+  .outside-row { padding-bottom: 0; }
+  .notes .stats { width: 100%; grid-template-columns: repeat(4, 1fr); }
+  .notes .stats > div { padding: 8px 4px; }
+  .notes .stats dd { font-size: 14px; }
+  .notes .stats dt { font-size: 8px; }
+  @media (min-width: 861px) and (max-height: 660px) {
+    .experience p { font-size: 12.5px; line-height: 1.3; }
+    .experience h3 { font-size: 17px; }
+    .experience-row { padding: 6px 0; }
+    .experience-label { margin-bottom: 7px; }
+  }
   /* ── notes ── */
   .notes { position: fixed; right: var(--gutter); bottom: var(--gutter); width: 300px; border: 1px solid var(--line); background: var(--panel-strong); }
   .notes summary { list-style: none; cursor: pointer; padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; }
@@ -147,7 +167,11 @@
     .caption { font-size: 14px; }
     .status { grid-area: status; align-self: start; margin: var(--gutter) var(--gutter) 0 0; }
     .stage { grid-area: stage; height: clamp(300px, 56vh, 600px); position: relative; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-    .readouts { grid-area: read; padding: 18px var(--gutter) 6px; max-width: none; }
+    .readouts { grid-area: read; width: auto; padding: 24px var(--gutter) 6px; max-width: none; }
+    .experience p { font-size: 16px; line-height: 1.5; }
+    .experience h3 { font-size: 22px; }
+    .experience-row { padding: 14px 0; }
+    .outside-label { margin-top: 14px; }
     .stats { width: 100%; grid-template-columns: repeat(4, 1fr); }
     .stats > div { padding-right: 8px; }
     .stats > div + div { padding-left: 12px; }
@@ -227,20 +251,35 @@
     </div>
   </aside>
 
-  <section class="readouts" aria-label="Live readouts">
-    <p class="hint"><b>Handle</b>Grab and stretch the jelly anywhere. Drag the background to orbit. Use the wheel or a second finger to twist. Jiggle nudges the body; Drops tosses little jelly beads.</p>
-    <dl class="stats">
-      <div><dt class="label">Mass</dt><dd>≈<span id="massOut">7.6</span><small>g</small></dd></div>
-      <div><dt class="label">Volume</dt><dd><span id="volOut">99.1</span><small>% of rest</small></dd></div>
-      <div><dt class="label">Length</dt><dd><span id="lenOut">6.6</span><small>cm</small></dd></div>
-      <div><dt class="label">Drops</dt><dd><span id="krillOut">0</span><small>loose</small></dd></div>
-    </dl>
-    <p class="footnote">Illustrative scale: 1 sim unit ≈ 2 cm, gummy at 1.3 g/cm³. Volume is summed live over every tetrahedron. The same artifact solver handles elasticity, volume, friction and grabs.</p>
+  <section class="readouts experience" aria-label="Experience and interests">
+    <h2 class="label experience-label">A few things I’ve done</h2>
+    <article class="experience-row">
+      <span class="experience-number" aria-hidden="true">01</span>
+      <div><h3>Growth @ Karat Financial</h3>
+      <p>Helped grow a community of <strong>2,000+ creators</strong> reaching <strong>50M+ combined followers</strong>, contributed to <strong>$10M+ in client deposits</strong>, and turned cold outreach into <strong>50+ signed partnerships</strong>.</p></div>
+    </article>
+    <article class="experience-row">
+      <span class="experience-number" aria-hidden="true">02</span>
+      <div><h3>Winner @ BETA Camp</h3>
+      <p>Built preppin, an AI nutrition coach that reached <strong>four figures in revenue</strong>, <strong>50+ customers</strong>, and <strong>10,000+ visits during launch week</strong> — then won <strong>$10,000 in equity-free funding</strong>.</p></div>
+    </article>
+    <h2 class="label experience-label outside-label">Outside of work</h2>
+    <article class="experience-row outside-row">
+      <span class="experience-number" aria-hidden="true">03</span>
+      <div><h3>Competed nationally in badminton</h3>
+      <p>Placed <strong>3rd at nationals</strong>, won <strong>2 provincial championships</strong>, and spent a few years coaching the next generation.</p></div>
+    </article>
   </section>
 
   <details class="notes">
     <summary><span class="label">Inside the experiment</span></summary>
     <div class="body">
-      <h3>A Nailong cast in jelly</h3><p>Original artifact engine: <span id="nParticles">0</span> nodes, <span id="nTets">0</span> tetrahedra, <span id="nBubbles">0</span> trapped bubbles.</p><span hidden id="nBaleen"></span><span hidden id="nKrill"></span></div></details></section>
+      <h3>A Nailong cast in jelly</h3>    <dl class="stats">
+      <div><dt class="label">Mass</dt><dd>≈<span id="massOut">7.6</span><small>g</small></dd></div>
+      <div><dt class="label">Volume</dt><dd><span id="volOut">99.1</span><small>% of rest</small></dd></div>
+      <div><dt class="label">Length</dt><dd><span id="lenOut">6.6</span><small>cm</small></dd></div>
+      <div><dt class="label">Drops</dt><dd><span id="krillOut">0</span><small>loose</small></dd></div>
+    </dl>
+<p>Original artifact engine: <span id="nParticles">0</span> nodes, <span id="nTets">0</span> tetrahedra, <span id="nBubbles">0</span> trapped bubbles.</p><span hidden id="nBaleen"></span><span hidden id="nKrill"></span></div></details></section>
 <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js" } }</script>
 <script type="module" src="./nailong.js?v=eyes-shape-2"></script></body></html>

@@ -29,6 +29,7 @@ Then reload the page. Cache generation avoids rerunning the costly procedural me
 
 ```sh
 node --check nailong.js
+node check-mesh.cjs
 node check-physics.cjs
 ```
 
@@ -37,3 +38,5 @@ The physics check verifies exact reference-source equality, settles the current 
 Latest result: 852 nodes, 2,705 tetrahedra; volume 99.24% at rest, 100.19% held, 99.52% after release; finite positions and no floor penetration. Native browser Jiggle, head dragging and Reset were also inspected; no console errors were captured. Current visual evidence is `review/artifact-engine-nailong.png`.
 
 The anatomy is a procedural reconstruction of one reference image and should not be described as pixel-identical. The original artifact source is preserved in `review/blue-whale-reference.js` for source-equivalence verification.
+
+Mesh generation also checks that the body has no open boundary edges, preventing clipped head caps when the character grows beyond old extraction bounds.

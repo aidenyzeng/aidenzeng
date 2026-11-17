@@ -443,7 +443,7 @@ const KRILL = (() => {
 // material ids: 0 body (clear jelly), 1 a drop of the spout, 2 eye, 3 the milky layer, 4 bubble, 5 baleen, 6 krill
 const SPOUT_POOL = 72;
 function buildRenderMesh(){
- const nets=surfaceNets(whaleSD,[-1.79,-.02,-.76,1.80,1.88,1.18],.043);
+ const nets=surfaceNets(whaleSD,[-1.97,-.12,-.87,1.92,1.97,1.31],.043);
  const pos=nets.pos.slice(),nrm=nets.nrm.slice(),mat=new Array(pos.length/3).fill(0),idx=nets.idx.slice(),ctr=new Array(pos.length/3*4).fill(0);
  const add=(x,y,z,m,nx,ny,nz,c=null)=>{pos.push(x,y,z);nrm.push(nx,ny,nz);mat.push(m);ctr.push(...(c||[0,0,0,0]));return pos.length/3-1;};
  const bodyIndexCount=idx.length,bodyVertCount=pos.length/3,propStart=idx.length;

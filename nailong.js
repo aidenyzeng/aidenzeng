@@ -223,12 +223,12 @@ function roundedBodySD(x,y,z,rx,ry,rz,p){
  return (k-1)/Math.max(g,1e-6);
 }
 const NAILONG_EYES=[{x:-.92,y:1.28,rx:.15,ry:.165,gazeY:-.035},{x:-.83,y:.44,rx:.14,ry:.155,gazeY:.035}].map(e=>({...e,z:.03+.73*Math.pow(1-Math.abs((e.x+.79)/1.02)**2.20-Math.abs((e.y-.86)/.94)**2.20,1/2.20)}));
-function nailongSolid(x,y,z){
+function nailongSolid(x,y,z,renderArm=false){
  let d=roundedBodySD(x+.79,y-.86,z-.03,1.02,.94,.73,2.20);
  d=smin(d,roundedBodySD(x-.69,y-.76,z+.12,1.04,.77,.55,2.35),.12);
  // shoulder behind the head and the long arm resting over the chest
  d=smin(d,sdEllipsoid(x-.12,y-1.36,z-.06,.33,.34,.33),.08);
- d=smin(d,sdEllipsoid(x-.22,y-.98,z-.49,.23,.44,.24),.065);
+ d=smin(d,sdEllipsoid(x-.22,y-.98,z-(renderArm?.39:.49),renderArm?.27:.23,.44,.24),renderArm?.24:.065);
  d=smin(d,sdEllipsoid(x-.25,y-.08,z-.08,.22,.13,.16),.045);
  d=smin(d,sdEllipsoid(x-1.43,y-.20,z-.16,.23,.20,.22),.045);
  d=smin(d,sdEllipsoid(x-1.46,y-.53,z+.20,.25,.23,.23),.045);
@@ -238,6 +238,8 @@ function nailongSolid(x,y,z){
 }
 function cavitySD(x,y,z){return sdEllipsoid(x+.25,y-.83,z-.77,.28,.49,.30);}
 function whaleSD(x,y,z){let d=smax(nailongSolid(x,y,z),-cavitySD(x,y,z),.022);d=smin(d,tongueSD(x,y,z),.035);return smax(d,-y,.055);}
+// Render-only arm union: the simulation retains its exact approved rest mesh.
+function renderBodySD(x,y,z){let d=smax(nailongSolid(x,y,z,true),-cavitySD(x,y,z),.022);d=smin(d,tongueSD(x,y,z),.035);return smax(d,-y,.055);}
 
 // the milky layer: the belly drawn in by the skin below the wavy line (a thin floor under the throat)
 function coreSD(x,y,z){return smax(whaleSD(x,y,z)+.014,sdEllipsoid(x-.65,y-.47,z-.47,.57,.63,.16),.025);}
@@ -455,7 +457,7 @@ const KRILL = (() => {
 // material ids: 0 body (clear jelly), 1 a drop of the spout, 2 eye, 3 the milky layer, 4 bubble, 5 baleen, 6 krill
 const SPOUT_POOL = 72;
 function buildRenderMesh(){
- const nets=surfaceNets(whaleSD,[-1.97,-.12,-.87,1.92,1.97,1.31],.024);
+ const nets=surfaceNets(renderBodySD,[-1.97,-.12,-.87,1.92,1.97,1.31],.024);
  const pos=nets.pos.slice(),nrm=nets.nrm.slice(),mat=new Array(pos.length/3).fill(0),idx=nets.idx.slice(),ctr=new Array(pos.length/3*4).fill(0);
  const add=(x,y,z,m,nx,ny,nz,c=null)=>{pos.push(x,y,z);nrm.push(nx,ny,nz);mat.push(m);ctr.push(...(c||[0,0,0,0]));return pos.length/3-1;};
  const bodyIndexCount=idx.length,bodyVertCount=pos.length/3,propStart=idx.length;
@@ -485,9 +487,9 @@ function buildRenderMesh(){
   };
 
  // A rear toe may lie entirely behind z=0; search the full body depth.
- function clawSurfaceZ(x,y){let outside=1.3;for(let z=1.29;z>=-.9;z-=.01){if(whaleSD(x,y,z)<0){let inside=z;for(let i=0;i<20;i++){const mid=(inside+outside)*.5;if(whaleSD(x,y,mid)<0)inside=mid;else outside=mid;}return (inside+outside)*.5;}outside=z;}return null;}
+ function clawSurfaceZ(x,y){let outside=1.3;for(let z=1.29;z>=-.9;z-=.01){if(renderBodySD(x,y,z)<0){let inside=z;for(let i=0;i<20;i++){const mid=(inside+outside)*.5;if(renderBodySD(x,y,mid)<0)inside=mid;else outside=mid;}return (inside+outside)*.5;}outside=z;}return null;}
  const surfaceDetails=[];
- const oval=(p,r,m,anchor=p)=>{const o=ovoid(p,[1,0,0],[0,1,0],[0,0,1],r[0],r[2],r[1],m,m===4?10:18,m===4?16:32,[...p,Math.max(...r)]);if([2,5,7,8].includes(m))surfaceDetails.push({...o,anchor:anchor.slice(),surfaceDistance:whaleSD(...anchor)});return o;};
+ const oval=(p,r,m,anchor=p)=>{const o=ovoid(p,[1,0,0],[0,1,0],[0,0,1],r[0],r[2],r[1],m,m===4?10:18,m===4?16:32,[...p,Math.max(...r)]);if([2,5,7,8].includes(m))surfaceDetails.push({...o,anchor:anchor.slice(),surfaceDistance:renderBodySD(...anchor)});return o;};
  // A single shallow cap follows the curved face. Iris and pupil are shaded on
  // this same surface, so they cannot separate into stacked protruding beads.
  for(const E of NAILONG_EYES){
@@ -511,7 +513,7 @@ function buildRenderMesh(){
      const a=ring(i)+j,b=ring(i)+(j+1)%segs,c=ring(i+1)+j,d=ring(i+1)+(j+1)%segs;
      idx.push(a,c,d,a,d,b);
    }
-   surfaceDetails.push({v0,nv:pos.length/3-v0,anchor,conform:true,surfaceDistance:whaleSD(...anchor)});
+   surfaceDetails.push({v0,nv:pos.length/3-v0,anchor,conform:true,surfaceDistance:renderBodySD(...anchor)});
  }
  for(const [cx,cy,n] of [[1.55,.15,3],[1.61,.48,3],[.22,.63,2],[.20,.09,2]])for(let i=0;i<n;i++){
    const x=cx+(i-(n-1)/2)*.073,z=clawSurfaceZ(x,cy);if(z===null)continue;
@@ -1472,21 +1474,20 @@ float contactAO(vec3 P) {
   vec2 dims = vec2(textureSize(uHeight, 0));
   float occ = 0.0;
   // the height map holds (y + 1) / 5 of the lowest surface above each point of the floor
-  for (int ring = 0; ring < 3; ring++) {
-    float rad = 0.012 + float(ring) * 0.028;
-    for (int i = 0; i < 8; i++) {
-      float a = float(i) * 0.785398 + float(ring) * 0.39;
+  for (int ring = 0; ring < 2; ring++) {
+    float rad = 0.002 + float(ring) * 0.005;
+    for (int i = 0; i < 6; i++) {
+      float a = float(i) * 1.047198 + float(ring) * 0.39;
       vec2 s = uv + vec2(cos(a), sin(a)) * rad;
       if (s.x < 0.0 || s.x > 1.0 || s.y < 0.0 || s.y > 1.0) continue;
       float d = texelFetch(uHeight, ivec2(s * dims), 0).r;
       float h = d * 5.0 - 1.0;
       if (d < 0.9999) {
-        float dist = float(ring) * 0.028 * 5.2 + 0.05;
-        occ += (1.0 - smoothstep(0.0, 0.55 + dist, h)) * (1.0 - float(ring) * 0.22);
+        occ += (1.0 - smoothstep(0.015, 0.22, max(h,0.0)));
       }
     }
   }
-  return clamp(occ / 16.0, 0.0, 1.0);
+  return clamp(occ / 12.0, 0.0, 1.0);
 }
 
 // light from the key that has crossed the clear jelly to reach P: the shadow map holds the depth of the first
@@ -1545,7 +1546,7 @@ varying vec3 vWp;
 void main() { gl_FragColor = vec4((vWp.y + 1.0) / 5.0, 0.0, 0.0, 1.0); }
 `;
 
-// ── the studio sweep: soft key shadow tinted by the jelly it crossed, contact occlusion, the krill's glow ──
+// ── the studio sweep: neutral footprint contact shadow and the krill's glow ──
 const GLSL_FLOOR_FS = GLSL_COMMON + GLSL_SHADOW_FNS + /* glsl */`
 varying vec2 vNdc;
 void main() {
@@ -1561,15 +1562,13 @@ void main() {
     float t = (uMisc.z - ro.y) / rd.y;
     vec3 P = ro + rd * t;
     dep = linearDepth(P);
-    float sh = keyShadow(P, 0.0015);
     float ao = contactAO(P);
-    // translucent jelly casts a tinted shadow: pale under the flukes, deep under the body; contact occlusion stays neutral
+    // Neutral warm-grey shadow, independent of jelly colour. Tint is only 10%.
     vec3 jT = clamp(uFlesh.rgb, vec3(0.002), vec3(0.999));
-    vec3 trans = jellyLight(P, -log(jT) * uFlesh.w, 0.75);
-    vec3 shadowCol = mix(vec3(1.0), max(trans, uShadowTint * 0.52) * 0.92, (1.0 - sh) * (1.0 - 0.6 * uMisc.w));
+    vec3 shadowColour=mix(vec3(.19),vec3(.21,.20,.19),.10);
+    float shadowOpacity=min(.35,.35*ao);
     vec3 fl = uBg * (0.9 + 0.1 * clamp(1.0 - length(P.xz - vec2(0.0, 0.8)) * 0.12, 0.0, 1.0));
-    fl *= shadowCol;
-    fl *= 1.0 - ao * 0.72;
+    fl *= mix(vec3(1.0),shadowColour,shadowOpacity);
     // the krill's light, coming out through the blue of the whale
     float gd = length(P - uGlowP.xyz);
     fl += uGlowC * uGlowP.w * 0.1 / (1.0 + gd * gd * 2.2) * exp(log(jT) * uFlesh.w * 0.32) * (1.0 - ao * 0.5);
@@ -1961,7 +1960,7 @@ class Renderer {
       back: mat(GLSL_POS_VS, GLSL_BACK_FS, { side: THREE.BackSide }),
       copy: mat(GLSL_FULL_VS, GLSL_COPY_FS, { depthTest: false, depthWrite: false }),
       depth: mat(GLSL_MESH_VS, 'varying float vMat; void main() { int m=int(vMat+.5); if(m==2||m==5||m==7||m==8)discard; gl_FragColor=vec4(0.0); }', { colorWrite: false }),
-      jelly: mat(GLSL_MESH_VS, GLSL_JELLY_FS),
+      jelly: mat(GLSL_MESH_VS, GLSL_JELLY_FS, { transparent: false, depthWrite: true, depthTest: true }),
       lines: mat(GLSL_LINE_VS, GLSL_LINE_FS, {
         transparent: true, depthTest: false, depthWrite: false, blending: THREE.CustomBlending,
         blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor, blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.OneMinusSrcAlphaFactor,
@@ -2144,7 +2143,7 @@ async function main() {
 
   // ── build everything once ──
   let cached;
-  try{cached=await fetch('./nailong-mesh.json?v=eyes-shape-2').then(r=>{if(!r.ok)throw Error('mesh cache unavailable');return r.json();});}catch{cached={simMesh:buildSimMesh(.24),renderMesh:buildRenderMesh()};}
+  try{cached=await fetch('./nailong-mesh.json?v=shadow-arm-final').then(r=>{if(!r.ok)throw Error('mesh cache unavailable');return r.json();});}catch{cached={simMesh:buildSimMesh(.24),renderMesh:buildRenderMesh()};}
   const simMesh=cached.simMesh,renderMesh=cached.renderMesh;
   simMesh.rest=new Float32Array(simMesh.rest);simMesh.tets=new Uint32Array(simMesh.tets);simMesh.region=new Uint8Array(simMesh.region);
   for(const key of ['rest','restNormal','mat','ctr'])renderMesh[key]=new Float32Array(renderMesh[key]);renderMesh.index=new Uint32Array(renderMesh.index);
@@ -2410,8 +2409,8 @@ async function main() {
     const fl = Math.hypot(...f); cam.fwd = f.map(v => v / fl);
   }
 
-  // light rig: key from behind and above the tail (so the flukes and flippers glow toward the camera)
-  const keyDir = vnorm([-0.45, 0.86, -0.36]);
+  // Near-overhead key keeps the floor shadow within the character footprint.
+  const keyDir = vnorm([-0.08, 0.994, -0.055]);
   const light = { dir: keyDir, intensity: 2.3, at: [0, 0.3, 0] };
   function updateLight() {
     // shadow and height maps are centred on the whale itself so they never lose it
@@ -2793,7 +2792,11 @@ async function main() {
   sim.reset(reduced.matches ? 0 : 0.35);
   let last = performance.now(), fpsStart = last, acc = 0, readoutT = 0, fps = 60, frames = 0, fpsT = 0, first = true, stepAvg = 4;
   skin();
+  const profileEnabled=new URLSearchParams(location.search).has('profile');
+  const profileSamples=[];let profileFrames=0,profileLast=0;
   function frame(now) {
+    const frameStart=profileEnabled?performance.now():0;
+    const interval=profileLast?now-profileLast:0;profileLast=now;
     const dt = Math.min((now - last) / 1000, 0.1);
     last = now;
     if (!state.paused) {
@@ -2845,6 +2848,10 @@ async function main() {
     readoutT += dt; frames++; fpsT += dt;
     if (fpsT > 0.5) { fps = frames / ((now - fpsStart) / 1000); frames = 0; fpsT = 0; fpsStart = now; }
     if (readoutT > 0.12) { readoutT = 0; updateReadouts(); }
+    if(profileEnabled&&++profileFrames>120&&profileSamples.length<240){
+      profileSamples.push({cpu:performance.now()-frameStart,interval});
+      if(profileSamples.length===240){const values=k=>profileSamples.map(s=>s[k]).sort((a,b)=>a-b);const cpu=values('cpu'),iv=values('interval');canvas.dataset.profile=JSON.stringify({frames:240,cpuMedian:cpu[120],cpuP95:cpu[228],intervalMedian:iv[120],intervalP95:iv[228],width:renderer.w,height:renderer.h,substeps:sim.substeps});}
+    }
     if (!renderer.lost) requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);

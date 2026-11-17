@@ -56,3 +56,7 @@ Each eye is a single shallow cap following the face, with the white, green iris 
 The head has fuller rounded cheeks, the torso has a smoother back, the shoulder transition is softer, and the cream belly is larger. Physics source remains unchanged from the reference artifact. The revised mesh has no open edges (89,160 body triangles); the grab/release simulation recovered 99.28% volume with finite positions and valid floor contact. Browser head-pull/reset and close-up checks produced no console errors.
 
 Matching overview captures: `review/eye-shape-before.png` and `review/eye-shape-after.png`. Eye close-up: `review/eyes-refined-closeup.png`.
+
+### Contact shadow and fused arm rendering
+
+The floor now uses a compact neutral warm-grey contact shadow (10% tint, maximum opacity 0.35), with a near-overhead key. The arm's render surface blends smoothly into the torso; the solver and cached simulation mesh are unchanged. Use `node build-mesh.cjs --render-only` when modifying only the render surface. See `review/render-verification.md` for matching screenshots, integrity checks, and measured frame times.

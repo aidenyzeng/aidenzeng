@@ -5,7 +5,7 @@ https://claude.ai/artifact/CGa66nQyfdNP5mNYVySRii
 
 `nailong.js` retains the reference's physics section unchanged: co-rotational tetrahedral XPBD, signed-volume constraints, internal edge damping, friction, floor contact, soft grabs and twisting. The custom multi-pass renderer and specimen-panel stylesheet are retained. Nailong's SDF, face, belly, tongue, palette, framing and explanatory copy are adapted for the supplied character image. Jiggle replaces the whale's gulp action; Drops retains the reference's loose jelly beads.
 
-The same solver does not imply an identical mesh: Nailong uses its own snapped tetrahedral mesh at 0.24-unit spacing. Display pixel ratio is capped at 1.5 for this larger specimen. Physics and rendering algorithms are the reference's, while character geometry is purpose-built.
+The same solver does not imply an identical mesh: Nailong uses its own snapped tetrahedral mesh at 0.24-unit spacing. Display pixel ratio is capped at 2 for this larger specimen. Physics and rendering algorithms are the reference's, while character geometry is purpose-built.
 
 ## Edit and run
 
@@ -48,3 +48,11 @@ Surface rendering now uses a denser skin mesh, a displacement filter and three n
 The render surface now uses a 0.024 grid and supports device pixel ratios up to 2. The cavity has a narrow antialiased lip transition, and the purple tongue mask follows the same smooth-union field as its flatter, broader geometry. The tongue clears the arm; the former head claws are rooted at the hanging hand tip. Cached assets have a revision query so existing browser sessions pick up the changes.
 
 Verified: closed mesh (88,268 body triangles), all claw roots on limbs, exact reference solver retained, stable grab/release and floor contact (99.49% recovered volume), no browser errors. Screenshot: `review/mouth-tongue-hand-fix.png`.
+
+### Eye and silhouette refinement
+
+Each eye is a single shallow cap following the face, with the white, green iris and dark pupil shaded on the same surface. Shallow sockets and the compressed upper edge tuck the irises under the yellow lids. The eye caps follow the nearby body vertices during deformation; claws retain their coherent attachment frames. The eye spacing and gaze follow the supplied sideways reference.
+
+The head has fuller rounded cheeks, the torso has a smoother back, the shoulder transition is softer, and the cream belly is larger. Physics source remains unchanged from the reference artifact. The revised mesh has no open edges (89,160 body triangles); the grab/release simulation recovered 99.28% volume with finite positions and valid floor contact. Browser head-pull/reset and close-up checks produced no console errors.
+
+Matching overview captures: `review/eye-shape-before.png` and `review/eye-shape-after.png`. Eye close-up: `review/eyes-refined-closeup.png`.

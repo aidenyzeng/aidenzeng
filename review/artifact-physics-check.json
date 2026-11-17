@@ -1,10 +1,10 @@
 {
   "referencePhysicsIdentical": true,
-  "nodes": 843,
-  "tetrahedra": 2685,
-  "restingVolume": 0.9921278694105742,
-  "heldVolume": 1.0018068613461746,
-  "recoveredVolume": 0.9949067585207236,
+  "nodes": 885,
+  "tetrahedra": 2890,
+  "restingVolume": 0.9913408898515036,
+  "heldVolume": 1.002105730253748,
+  "recoveredVolume": 0.9928205051521599,
   "finite": true,
   "minHeight": 0,
   "pass": true

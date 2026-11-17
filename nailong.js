@@ -214,22 +214,33 @@ const GUARD = [SHAPE.guard.x, topAt(SHAPE.guard.x) - 0.012, 0];
 function bodyFlat(x, y, z) { return smax(bodyRaw(x, y, z), -y, SHAPE.floorK); }
 // A narrow rooted neck opens into a broad, flattened, rounded tongue tip.
 function tongueSD(x,y,z){return smin(sdEllipsoid(x+.31,y-1.08,z-.64,.13,.18,.13),smin(sdEllipsoid(x+.28,y-.91,z-.78,.19,.24,.11),sdEllipsoid(x+.20,y-.79,z-.88,.25,.22,.10),.075),.085);}
+// Slightly fuller corners give Nailong rounded cheeks and a broad, soft back.
+function roundedBodySD(x,y,z,rx,ry,rz,p){
+ const ax=Math.abs(x/rx),ay=Math.abs(y/ry),az=Math.abs(z/rz);
+ const k=Math.pow(ax**p+ay**p+az**p,1/p);
+ if(k<1e-6)return -Math.min(rx,ry,rz);
+ const g=Math.hypot(ax**(p-1)/rx,ay**(p-1)/ry,az**(p-1)/rz)/k**(p-1);
+ return (k-1)/Math.max(g,1e-6);
+}
+const NAILONG_EYES=[{x:-.92,y:1.28,rx:.15,ry:.165,gazeY:-.035},{x:-.83,y:.44,rx:.14,ry:.155,gazeY:.035}].map(e=>({...e,z:.03+.73*Math.pow(1-Math.abs((e.x+.79)/1.02)**2.20-Math.abs((e.y-.86)/.94)**2.20,1/2.20)}));
 function nailongSolid(x,y,z){
- let d=sdEllipsoid(x+.79,y-.86,z-.03,1.02,.93,.73);
- d=smin(d,sdEllipsoid(x-.69,y-.76,z+.12,1.04,.77,.55),.09);
+ let d=roundedBodySD(x+.79,y-.86,z-.03,1.02,.94,.73,2.20);
+ d=smin(d,roundedBodySD(x-.69,y-.76,z+.12,1.04,.77,.55,2.35),.12);
  // shoulder behind the head and the long arm resting over the chest
- d=smin(d,sdEllipsoid(x-.12,y-1.37,z-.08,.36,.37,.36),.08);
+ d=smin(d,sdEllipsoid(x-.12,y-1.36,z-.06,.33,.34,.33),.08);
  d=smin(d,sdEllipsoid(x-.22,y-.98,z-.49,.23,.44,.24),.065);
  d=smin(d,sdEllipsoid(x-.25,y-.08,z-.08,.22,.13,.16),.045);
  d=smin(d,sdEllipsoid(x-1.43,y-.20,z-.16,.23,.20,.22),.045);
  d=smin(d,sdEllipsoid(x-1.46,y-.53,z+.20,.25,.23,.23),.045);
+ // Shallow sockets leave a soft yellow lid around each eye without piercing the head.
+ for(const e of NAILONG_EYES)d=smax(d,-sdEllipsoid(x-e.x,y-e.y,z-e.z-.022,e.rx*1.10,e.ry*1.10,.055),.008);
  return d;
 }
 function cavitySD(x,y,z){return sdEllipsoid(x+.25,y-.83,z-.77,.28,.49,.30);}
 function whaleSD(x,y,z){let d=smax(nailongSolid(x,y,z),-cavitySD(x,y,z),.022);d=smin(d,tongueSD(x,y,z),.035);return smax(d,-y,.055);}
 
 // the milky layer: the belly drawn in by the skin below the wavy line (a thin floor under the throat)
-function coreSD(x,y,z){return smax(whaleSD(x,y,z)+.014,sdEllipsoid(x-.61,y-.44,z-.46,.53,.58,.16),.025);}
+function coreSD(x,y,z){return smax(whaleSD(x,y,z)+.014,sdEllipsoid(x-.65,y-.47,z-.47,.57,.63,.16),.025);}
 // which part a rest-space point belongs to: 3 a fin, 2 the skin, 1 the clear jelly, 0 the milky layer
 function partOf(x,y,z){if(tongueSD(x,y,z)<.035)return 1;if(coreSD(x,y,z)<0)return 0;return -whaleSD(x,y,z)<.045?2:1;}
 // the throat pouch: how much a rest-space point belongs to it (the lower half of the body from the navel to the chin)
@@ -448,7 +459,7 @@ function buildRenderMesh(){
  const pos=nets.pos.slice(),nrm=nets.nrm.slice(),mat=new Array(pos.length/3).fill(0),idx=nets.idx.slice(),ctr=new Array(pos.length/3*4).fill(0);
  const add=(x,y,z,m,nx,ny,nz,c=null)=>{pos.push(x,y,z);nrm.push(nx,ny,nz);mat.push(m);ctr.push(...(c||[0,0,0,0]));return pos.length/3-1;};
  const bodyIndexCount=idx.length,bodyVertCount=pos.length/3,propStart=idx.length;
- const core=surfaceNets(coreSD,[-.05,-.01,.13,1.13,1.10,.67],.025),cv0=pos.length/3;
+ const core=surfaceNets(coreSD,[-.03,-.06,.13,1.26,1.18,.69],.025),cv0=pos.length/3;
  for(let v=0;v<core.pos.length/3;v++)add(...core.pos.slice(v*3,v*3+3),3,...core.nrm.slice(v*3,v*3+3));
  for(const i of core.idx)idx.push(cv0+i);const coreRange={first:propStart,count:idx.length-propStart};
   const ovoid = (p, u, w, v, a, b, c, m, rings, segs, cv) => {
@@ -477,13 +488,30 @@ function buildRenderMesh(){
  function clawSurfaceZ(x,y){let outside=1.3;for(let z=1.29;z>=-.9;z-=.01){if(whaleSD(x,y,z)<0){let inside=z;for(let i=0;i<20;i++){const mid=(inside+outside)*.5;if(whaleSD(x,y,mid)<0)inside=mid;else outside=mid;}return (inside+outside)*.5;}outside=z;}return null;}
  const surfaceDetails=[];
  const oval=(p,r,m,anchor=p)=>{const o=ovoid(p,[1,0,0],[0,1,0],[0,0,1],r[0],r[2],r[1],m,m===4?10:18,m===4?16:32,[...p,Math.max(...r)]);if([2,5,7,8].includes(m))surfaceDetails.push({...o,anchor:anchor.slice(),surfaceDistance:whaleSD(...anchor)});return o;};
- for(const [x,y,dy] of [[-1.00,1.22,-.047],[-.95,.57,.047]]){
-   const z=surfaceOut(x,y)[2]-.006;
-   const eyeAnchor=[x,y,z];
-   oval([x,y,z],[.105,.140,.025],7,eyeAnchor);
-   oval([x-.042,y+dy,z+.022],[.074,.085,.014],8,eyeAnchor);
-   oval([x-.063,y+dy,z+.036],[.044,.063,.009],2,eyeAnchor);
-   oval([x-.079,y+dy+.025,z+.046],[.012,.017,.007],7,eyeAnchor);
+ // A single shallow cap follows the curved face. Iris and pupil are shaded on
+ // this same surface, so they cannot separate into stacked protruding beads.
+ for(const E of NAILONG_EYES){
+   const v0=pos.length/3,anchor=surfaceOut(E.x,E.y),rings=14,segs=64;
+   const point=(u,v)=>{
+     const x=E.x+E.rx*u*(u<0?.72:1)+.012*v*v,y=E.y+E.ry*v;
+     const z=surfaceOut(x,y)[2]+.005+.020*Math.max(0,1-u*u-v*v);
+     return [x,y,z];
+   };
+   const vertex=(u,v)=>{
+     const p=point(u,v),e=.0005,px=point(u+e,v),mx=point(u-e,v),py=point(u,v+e),my=point(u,v-e);
+     const a=px.map((x,k)=>x-mx[k]),b=py.map((x,k)=>x-my[k]);
+     const n=[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],l=Math.hypot(...n)||1;
+     return add(...p,7,...n.map(x=>x/l),[E.x,E.y,E.gazeY,E.rx]);
+   };
+   vertex(0,0);
+   for(let i=1;i<=rings;i++)for(let j=0;j<segs;j++){const t=j*2*Math.PI/segs,r=i/rings;vertex(r*Math.cos(t),r*Math.sin(t));}
+   const ring=i=>v0+1+(i-1)*segs;
+   for(let j=0;j<segs;j++)idx.push(v0,ring(1)+j,ring(1)+(j+1)%segs);
+   for(let i=1;i<rings;i++)for(let j=0;j<segs;j++){
+     const a=ring(i)+j,b=ring(i)+(j+1)%segs,c=ring(i+1)+j,d=ring(i+1)+(j+1)%segs;
+     idx.push(a,c,d,a,d,b);
+   }
+   surfaceDetails.push({v0,nv:pos.length/3-v0,anchor,conform:true,surfaceDistance:whaleSD(...anchor)});
  }
  for(const [cx,cy,n] of [[1.55,.15,3],[1.61,.48,3],[.22,.63,2],[.20,.09,2]])for(let i=0;i<n;i++){
    const x=cx+(i-(n-1)/2)*.073,z=clawSurfaceZ(x,cy);if(z===null)continue;
@@ -1630,9 +1658,18 @@ void main() {
     vec3 env = studioEnv(reflect(-V, N), 0.12, uBg);
     col = base * (amb + keyC * 0.5 * wrap * T) + env * F * 0.7 + keyC * ggx(N, V, L, 0.12) * T * 0.6 + base * glowLight(vWp, N, 9.0) * 2.0;
   } else if(m==7 || m==8){
-    vec3 base=m==7?vec3(.92,.91,.84):vec3(.022,.36,.012);
-    float sh=keyShadow(vWp,.0015);float wrap=clamp((NdL+.4)/1.4,0.0,1.0);
-    col=base*(uBg*.65+keyC*.45*wrap*mix(.45,1.0,sh))+studioEnv(reflect(-V,N),.13,uBg)*.055+keyC*ggx(N,V,L,.13)*sh*.4;
+    vec2 q=vRest.xy-vCtr.xy;
+    vec2 gaze=vec2(-.060,vCtr.z);
+    float irisR=length((q-gaze)/vec2(.086,.100));
+    float pupilR=length((q-gaze-vec2(-.006,0.0))/vec2(.059,.073));
+    float aa=max(fwidth(irisR),.005);
+    vec3 iris=mix(vec3(.015,.13,.025),vec3(.035,.38,.025),1.0-smoothstep(.78,1.0,irisR));
+    vec3 base=mix(vec3(.94,.93,.86),iris,1.0-smoothstep(1.0-aa,1.0+aa,irisR));
+    base=mix(base,vec3(.003,.008,.007),1.0-smoothstep(.98-aa,1.0+aa,pupilR));
+    float catchlight=1.0-smoothstep(.80,1.0,length((q-gaze-vec2(-.022,.028))/vec2(.016,.019)));
+    float sh=keyShadow(vWp,.0015),wrap=clamp((NdL+.4)/1.4,0.0,1.0);
+    col=base*(uBg*.65+keyC*.45*wrap*mix(.65,1.0,sh))+studioEnv(reflect(-V,N),.13,uBg)*.025+keyC*ggx(N,V,L,.13)*sh*.22;
+    col=mix(col,vec3(.95,.96,.88),catchlight*.92);
   } else {
     // ── a piece of krill: translucent pink, darker along its back, glowing when the lights are out ──
     vec3 T = jellyLight(vWp, sigJ, 1.2);
@@ -2107,7 +2144,7 @@ async function main() {
 
   // ── build everything once ──
   let cached;
-  try{cached=await fetch('./nailong-mesh.json?v=mouth-hand-4').then(r=>{if(!r.ok)throw Error('mesh cache unavailable');return r.json();});}catch{cached={simMesh:buildSimMesh(.24),renderMesh:buildRenderMesh()};}
+  try{cached=await fetch('./nailong-mesh.json?v=eyes-shape-2').then(r=>{if(!r.ok)throw Error('mesh cache unavailable');return r.json();});}catch{cached={simMesh:buildSimMesh(.24),renderMesh:buildRenderMesh()};}
   const simMesh=cached.simMesh,renderMesh=cached.renderMesh;
   simMesh.rest=new Float32Array(simMesh.rest);simMesh.tets=new Uint32Array(simMesh.tets);simMesh.region=new Uint8Array(simMesh.region);
   for(const key of ['rest','restNormal','mat','ctr'])renderMesh[key]=new Float32Array(renderMesh[key]);renderMesh.index=new Uint32Array(renderMesh.index);
@@ -2202,6 +2239,11 @@ async function main() {
   const smoothVertices=[];surfaceAdj.forEach((n,i)=>{if(n.size)smoothVertices.push(i);});
   const displacementA=new Float32Array(kv0*3),displacementB=new Float32Array(kv0*3);
   const detailFrames=(renderMesh.surfaceDetails||[]).map(detail=>{let nearest=0,best=Infinity;for(let v=0;v<renderMesh.bodyVertCount;v++){const k=v*3,d=(renderMesh.rest[k]-detail.anchor[0])**2+(renderMesh.rest[k+1]-detail.anchor[1])**2+(renderMesh.rest[k+2]-detail.anchor[2])**2;if(d<best){nearest=v;best=d;}}return {...detail,nearest,tet:emb.tetOf[nearest]};});
+  const conformEyes=detailFrames.filter(f=>f.conform).map(f=>({...f,skin:Array.from({length:f.nv},(_,i)=>{
+    const v=f.v0+i,k=v*3;let nearest=0,best=Infinity;
+    for(let j=0;j<renderMesh.bodyVertCount;j++){const q=j*3,d=(renderMesh.rest[k]-renderMesh.rest[q])**2+(renderMesh.rest[k+1]-renderMesh.rest[q+1])**2+(renderMesh.rest[k+2]-renderMesh.rest[q+2])**2;if(d<best){nearest=j;best=d;}}
+    return nearest;
+  })}));
   const nsm = new Float32Array(kv0 * 3);
   const kp = [0, 0, 0], ka = [0, 0, 0], kb = [0, 0, 0];
   const krillAt = (i, t, out) => {
@@ -2266,6 +2308,10 @@ async function main() {
       for(const v of smoothVertices){const k=v*3;displacementA[k]=displacementB[k];displacementA[k+1]=displacementB[k+1];displacementA[k+2]=displacementB[k+2];}
     }
     for(const v of smoothVertices){const k=v*3,o=v*D;for(let a=0;a<3;a++)dyn[o+a]=renderMesh.rest[k+a]+displacementA[k+a];}
+    for(const f of conformEyes)for(let i=0;i<f.nv;i++){
+      const v=f.v0+i,k=v*3,o=v*D,b=f.skin[i]*3;
+      for(let a=0;a<3;a++)dyn[o+a]=renderMesh.rest[k+a]+displacementA[b+a];
+    }
     for (let t = 0; t < index.length; t += 3) {
       const a = D * index[t], b = D * index[t + 1], c = D * index[t + 2];
       const e1x = dyn[b] - dyn[a], e1y = dyn[b + 1] - dyn[a + 1], e1z = dyn[b + 2] - dyn[a + 2];
@@ -2298,6 +2344,7 @@ async function main() {
       for(const v of smoothVertices){const k=v*3,l=Math.hypot(nsm[k],nsm[k+1],nsm[k+2]);if(l>1e-9){dyn[D*v+3]=nsm[k]/l;dyn[D*v+4]=nsm[k+1]/l;dyn[D*v+5]=nsm[k+2]/l;}}
     }
     for(const f of detailFrames){
+      if(f.conform)continue;
       const q=f.tet*4,qx=sim.tetRot[q],qy=sim.tetRot[q+1],qz=sim.tetRot[q+2],qw=sim.tetRot[q+3];
       const center=f.anchor.map((v,a)=>v+displacementA[f.nearest*3+a]);
       const rotate=(x,y,z)=>{const tx=2*(qy*z-qz*y),ty=2*(qz*x-qx*z),tz=2*(qx*y-qy*x);return [x+qw*tx+qy*tz-qz*ty,y+qw*ty+qz*tx-qx*tz,z+qw*tz+qx*ty-qy*tx];};

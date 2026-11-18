@@ -8,4 +8,6 @@ const existing=process.argv.includes('--render-only')?JSON.parse(fs.readFileSync
 const mesh = build(existing);
 console.log(require('./check-mesh.cjs')(mesh));
 fs.writeFileSync(path.join(__dirname, 'nailong-mesh.json'), JSON.stringify(mesh, (_, v) => ArrayBuffer.isView(v) ? Array.from(v) : v));
+// the page loads the compact binary; the JSON stays as the build cache (read by --render-only and the checks)
+fs.writeFileSync(path.join(__dirname, 'nailong-mesh.bin'), require('./pack-mesh.cjs')(JSON.parse(fs.readFileSync(path.join(__dirname, 'nailong-mesh.json'), 'utf8'))));
 console.log(JSON.stringify({nodes:mesh.simMesh.rest.length/3,tetrahedra:mesh.simMesh.tets.length/4,vertices:mesh.renderMesh.rest.length/3}));

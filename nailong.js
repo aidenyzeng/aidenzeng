@@ -626,6 +626,39 @@ function embed(simRest, tets, verts, skip = [0, 0]) {
   return { tetOf, w };
 }
 
+// Each eye vertex rides the skin triangle beneath it: which triangle, barycentric weights, and a fixed height along
+// the interpolated normal. Precomputed by build-mesh.cjs into the mesh file; computed here only as a fallback.
+function eyeSkinning(renderMesh){
+  const index=renderMesh.index,bodyTriEnd=renderMesh.body.count;
+  return renderMesh.surfaceDetails.filter(f=>f.conform).map(f=>{
+    const RP=renderMesh.rest,tris=[];
+    for(let t=0;t<bodyTriEnd;t+=3){const a=index[t]*3;if(Math.hypot(RP[a]-f.anchor[0],RP[a+1]-f.anchor[1],RP[a+2]-f.anchor[2])<.35)tris.push(t);}
+    const tri=new Int32Array(f.nv),bw=new Float32Array(f.nv*3),hgt=new Float32Array(f.nv);
+    for(let i=0;i<f.nv;i++){
+      const k=(f.v0+i)*3,px=RP[k],py=RP[k+1],pz=RP[k+2];let best=Infinity;
+      for(const t of tris){
+        const a=index[t]*3,b=index[t+1]*3,c=index[t+2]*3;
+        const abx=RP[b]-RP[a],aby=RP[b+1]-RP[a+1],abz=RP[b+2]-RP[a+2],acx=RP[c]-RP[a],acy=RP[c+1]-RP[a+1],acz=RP[c+2]-RP[a+2];
+        let nx=aby*acz-abz*acy,ny=abz*acx-abx*acz,nz=abx*acy-aby*acx;const nl=Math.hypot(nx,ny,nz)||1;nx/=nl;ny/=nl;nz/=nl;
+        const apx=px-RP[a],apy=py-RP[a+1],apz=pz-RP[a+2],h=apx*nx+apy*ny+apz*nz;
+        const qx=apx-nx*h,qy=apy-ny*h,qz=apz-nz*h;
+        const d00=abx*abx+aby*aby+abz*abz,d01=abx*acx+aby*acy+abz*acz,d11=acx*acx+acy*acy+acz*acz,d20=qx*abx+qy*aby+qz*abz,d21=qx*acx+qy*acy+qz*acz,den=d00*d11-d01*d01||1e-12;
+        let v=(d11*d20-d01*d21)/den,w=(d00*d21-d01*d20)/den;
+        const out=Math.max(0,-v)+Math.max(0,-w)+Math.max(0,v+w-1);
+        const score=out*10+Math.abs(h);
+        if(score<best){best=score;v=Math.min(Math.max(v,0),1);w=Math.min(Math.max(w,0),1-v);tri[i]=t;bw[3*i]=1-v-w;bw[3*i+1]=v;bw[3*i+2]=w;}
+      }
+      // height above the interpolated surface point, along the interpolated rest normal
+      const t=tri[i],a=index[t]*3,b=index[t+1]*3,c=index[t+2]*3,w0=bw[3*i],w1=bw[3*i+1],w2=bw[3*i+2],RN=renderMesh.restNormal;
+      const sx=RP[a]*w0+RP[b]*w1+RP[c]*w2,sy=RP[a+1]*w0+RP[b+1]*w1+RP[c+1]*w2,sz=RP[a+2]*w0+RP[b+2]*w1+RP[c+2]*w2;
+      let nx=RN[a]*w0+RN[b]*w1+RN[c]*w2,ny=RN[a+1]*w0+RN[b+1]*w1+RN[c+1]*w2,nz=RN[a+2]*w0+RN[b+2]*w1+RN[c+2]*w2;const nl=Math.hypot(nx,ny,nz)||1;
+      hgt[i]=((px-sx)*nx+(py-sy)*ny+(pz-sz)*nz)/nl;
+    }
+    const eyeTris=[];for(let t=bodyTriEnd;t<index.length;t+=3)if(index[t]>=f.v0&&index[t]<f.v0+f.nv)eyeTris.push(t);
+    return {tri,bw,hgt,eyeTris:Int32Array.from(eyeTris)};
+  });
+}
+
 // ===== physics.js =====
 // ─────────────────────────────────────────────────────────────
 //  XPBD tetrahedral soft body — firm fins and skin round a soft, wobbling body
@@ -2168,13 +2201,32 @@ function showFallback(title, detail) {
   for (const el of document.querySelectorAll('.panel button, .panel input')) el.disabled = true;
 }
 
+// Reads nailong-mesh.bin (written by pack-mesh.cjs): a small JSON header, then typed arrays, some 16-bit quantized.
+function unpackMesh(buf){
+  const dv=new DataView(buf);
+  if(String.fromCharCode(dv.getUint8(0),dv.getUint8(1),dv.getUint8(2),dv.getUint8(3))!=='NLM1')throw Error('bad mesh file');
+  const hl=dv.getUint32(4,true),head=JSON.parse(new TextDecoder().decode(new Uint8Array(buf,8,hl)));
+  const base=Math.ceil((8+hl)/4)*4,T={f32:Float32Array,i16:Int16Array,u8:Uint8Array,u16:Uint16Array,u32:Uint32Array};
+  const out=head.meta;
+  for(const a of head.arrays){
+    const raw=new T[a.type](buf,base+a.offset,a.length);
+    let v=raw;
+    if(a.scale||a.start){const s=a.scale||1,o=a.start||0;v=new (a.scale?Float32Array:T[a.type])(a.full||a.length);for(let i=0;i<a.length;i++)v[o+i]=raw[i]*s;}
+    const keys=a.path.split('.');let o=out;
+    for(let i=0;i<keys.length-1;i++)o=o[keys[i]]??=(/^\d+$/.test(keys[i+1])?[]:{});
+    o[keys[keys.length-1]]=v;
+  }
+  return out;
+}
+
 async function main() {
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const canvas = $('#gl');
 
   // ── build everything once ──
   let cached;
-  try{cached=await fetch('./nailong-mesh.json?v=eye-flush-1').then(r=>{if(!r.ok)throw Error('mesh cache unavailable');return r.json();});}catch{cached={simMesh:buildSimMesh(.24),renderMesh:buildRenderMesh()};}
+  // the page starts this download from an inline script in <head>, alongside three.js (see index.html)
+  try{const buf=await (window.__meshBin||fetch('./nailong-mesh.bin?v=mesh-bin-2').then(r=>{if(!r.ok)throw Error('mesh cache unavailable');return r.arrayBuffer();}));cached=unpackMesh(buf);}catch{cached={simMesh:buildSimMesh(.24),renderMesh:buildRenderMesh()};}
   const simMesh=cached.simMesh,renderMesh=cached.renderMesh;
   simMesh.rest=new Float32Array(simMesh.rest);simMesh.tets=new Uint32Array(simMesh.tets);simMesh.region=new Uint8Array(simMesh.region);
   for(const key of ['rest','restNormal','mat','ctr'])renderMesh[key]=new Float32Array(renderMesh[key]);renderMesh.index=new Uint32Array(renderMesh.index);
@@ -2271,33 +2323,8 @@ async function main() {
   const detailFrames=(renderMesh.surfaceDetails||[]).map(detail=>{let nearest=0,best=Infinity;for(let v=0;v<renderMesh.bodyVertCount;v++){const k=v*3,d=(renderMesh.rest[k]-detail.anchor[0])**2+(renderMesh.rest[k+1]-detail.anchor[1])**2+(renderMesh.rest[k+2]-detail.anchor[2])**2;if(d<best){nearest=v;best=d;}}return {...detail,nearest,tet:emb.tetOf[nearest]};});
   // Each eye vertex rides the skin triangle beneath it (barycentric weights + a fixed height along the smoothed
   // normal). Copying a single nearest skin vertex let neighbouring eye points drift apart and sink under the jelly.
-  const conformEyes=detailFrames.filter(f=>f.conform).map(f=>{
-    const RP=renderMesh.rest,tris=[];
-    for(let t=0;t<bodyTriEnd;t+=3){const a=index[t]*3;if(Math.hypot(RP[a]-f.anchor[0],RP[a+1]-f.anchor[1],RP[a+2]-f.anchor[2])<.35)tris.push(t);}
-    const tri=new Int32Array(f.nv),bw=new Float32Array(f.nv*3),hgt=new Float32Array(f.nv);
-    for(let i=0;i<f.nv;i++){
-      const k=(f.v0+i)*3,px=RP[k],py=RP[k+1],pz=RP[k+2];let best=Infinity;
-      for(const t of tris){
-        const a=index[t]*3,b=index[t+1]*3,c=index[t+2]*3;
-        const abx=RP[b]-RP[a],aby=RP[b+1]-RP[a+1],abz=RP[b+2]-RP[a+2],acx=RP[c]-RP[a],acy=RP[c+1]-RP[a+1],acz=RP[c+2]-RP[a+2];
-        let nx=aby*acz-abz*acy,ny=abz*acx-abx*acz,nz=abx*acy-aby*acx;const nl=Math.hypot(nx,ny,nz)||1;nx/=nl;ny/=nl;nz/=nl;
-        const apx=px-RP[a],apy=py-RP[a+1],apz=pz-RP[a+2],h=apx*nx+apy*ny+apz*nz;
-        const qx=apx-nx*h,qy=apy-ny*h,qz=apz-nz*h;
-        const d00=abx*abx+aby*aby+abz*abz,d01=abx*acx+aby*acy+abz*acz,d11=acx*acx+acy*acy+acz*acz,d20=qx*abx+qy*aby+qz*abz,d21=qx*acx+qy*acy+qz*acz,den=d00*d11-d01*d01||1e-12;
-        let v=(d11*d20-d01*d21)/den,w=(d00*d21-d01*d20)/den;
-        const out=Math.max(0,-v)+Math.max(0,-w)+Math.max(0,v+w-1);
-        const score=out*10+Math.abs(h);
-        if(score<best){best=score;v=Math.min(Math.max(v,0),1);w=Math.min(Math.max(w,0),1-v);tri[i]=t;bw[3*i]=1-v-w;bw[3*i+1]=v;bw[3*i+2]=w;}
-      }
-      // height above the interpolated surface point, along the interpolated rest normal
-      const t=tri[i],a=index[t]*3,b=index[t+1]*3,c=index[t+2]*3,w0=bw[3*i],w1=bw[3*i+1],w2=bw[3*i+2],RN=renderMesh.restNormal;
-      const sx=RP[a]*w0+RP[b]*w1+RP[c]*w2,sy=RP[a+1]*w0+RP[b+1]*w1+RP[c+1]*w2,sz=RP[a+2]*w0+RP[b+2]*w1+RP[c+2]*w2;
-      let nx=RN[a]*w0+RN[b]*w1+RN[c]*w2,ny=RN[a+1]*w0+RN[b+1]*w1+RN[c+1]*w2,nz=RN[a+2]*w0+RN[b+2]*w1+RN[c+2]*w2;const nl=Math.hypot(nx,ny,nz)||1;
-      hgt[i]=((px-sx)*nx+(py-sy)*ny+(pz-sz)*nz)/nl;
-    }
-    const eyeTris=[];for(let t=bodyTriEnd;t<index.length;t+=3)if(index[t]>=f.v0&&index[t]<f.v0+f.nv)eyeTris.push(t);
-    return {...f,tri,bw,hgt,eyeTris};
-  });
+  const eyeSkin=renderMesh.eyeSkin||eyeSkinning(renderMesh);
+  const conformEyes=detailFrames.filter(f=>f.conform).map((f,k)=>({...f,...eyeSkin[k]}));
   const placeEyes=()=>{for(const f of conformEyes){
     for(let i=0;i<f.nv;i++){
       const o=(f.v0+i)*D,t=f.tri[i],A=index[t]*D,B=index[t+1]*D,C=index[t+2]*D,w0=f.bw[3*i],w1=f.bw[3*i+1],w2=f.bw[3*i+2];
@@ -2916,7 +2943,7 @@ async function main() {
     });
     renderer.uploadGeometry(sim.x, state.showMesh);
     renderer.draw(state.showMesh);
-    if (first) { first = false; setStatus('THREE.JS · LIVE', 'live'); document.body.classList.add('ready'); }
+    if (first) { window.dispatchEvent(new Event('nailong:ready')); first = false; setStatus('THREE.JS · LIVE', 'live'); document.body.classList.add('ready'); }
     readoutT += dt; frames++; fpsT += dt;
     if (fpsT > 0.5) { fps = frames / ((now - fpsStart) / 1000); frames = 0; fpsT = 0; fpsStart = now; }
     if (readoutT > 0.12) { readoutT = 0; updateReadouts(); }

@@ -1,5 +1,5 @@
 <!doctype html>
-<html style="--accent: #3a8ef0; --glow: #ff6f5e;"><head><!-- frame-runtime --><!-- /frame-runtime --><meta charset="utf8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><link rel="icon" type="image/png" sizes="32x32" href="./assets/icons/favicon-32.png?v=nailong1"><link rel="icon" type="image/png" sizes="64x64" href="./assets/icons/favicon-64.png?v=nailong1"><link rel="apple-touch-icon" href="./assets/icons/apple-touch-icon.png?v=nailong1"></head><body class="ready">
+<html style="--accent: #3a8ef0; --glow: #ff6f5e;"><head><!-- frame-runtime --><!-- /frame-runtime --><meta charset="utf8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><link rel="icon" type="image/png" sizes="32x32" href="./assets/icons/favicon-32.png?v=nailong1"><link rel="icon" type="image/png" sizes="64x64" href="./assets/icons/favicon-64.png?v=nailong1"><link rel="apple-touch-icon" href="./assets/icons/apple-touch-icon.png?v=nailong1"><script>window.__meshBin=fetch("./nailong-mesh.bin?v=mesh-bin-2").then(r=>{if(!r.ok)throw Error("mesh cache unavailable");return r.arrayBuffer();});window.__meshBin.catch(()=>{});</script></head><body class="ready">
 <title>Aiden Zeng</title>
 <meta name="description" content="Aiden Zeng — growth at Karat Financial, building Preppin, and competing nationally in badminton. A personal site with a little jelly.">
 <style>
@@ -385,7 +385,7 @@
     <h2 class="label projects-label">Projects</h2>
     <article class="project">
       <div class="project-video">
-        <video src="./assets/projects/sideline.mp4" poster="./assets/projects/sideline-poster.jpg" autoplay muted loop playsinline preload="auto" aria-label="Sideline demo video"></video>
+        <video src="./assets/projects/sideline.mp4" poster="./assets/projects/sideline-poster.jpg" muted loop playsinline preload="none" aria-label="Sideline demo video"></video>
         <a class="project-watch" href="https://youtu.be/yBbAu-VU0r8" target="_blank" rel="noopener">Watch the demo</a>
       </div>
       <div class="project-body">
@@ -414,9 +414,14 @@
 </section>
 <script>
   // the Sideline clip: hide the "watch" tag once it plays; keep the poster + link if the file is missing
+  // it waits for the creature's first frame (or 4 s) so the clip does not compete with the mesh download
   (() => { const v = document.querySelector('.project-video video'); if (!v) return;
     v.addEventListener('playing', () => v.parentElement.classList.add('is-playing'));
-    v.addEventListener('error', () => v.parentElement.classList.remove('is-playing'), true); })();
+    v.addEventListener('error', () => v.parentElement.classList.remove('is-playing'), true);
+    let started = false;
+    const start = () => { if (started) return; started = true; v.preload = 'auto'; v.play().catch(() => {}); };
+    window.addEventListener('nailong:ready', start, { once: true });
+    setTimeout(start, 4000); })();
 </script>
 <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js" } }</script>
-<script type="module" src="./nailong.js?v=size-90"></script></body></html>
+<script type="module" src="./nailong.js?v=mesh-bin-2"></script></body></html>

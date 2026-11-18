@@ -2424,12 +2424,14 @@ async function main() {
     const cr = canvas.getBoundingClientRect();
     if (document.body.classList.contains('stacked')) return { x: 0, y: 0, w: cr.width, h: cr.height };
     const panel = $('.panel').getBoundingClientRect();
+    const notes = $('.notes').getBoundingClientRect();
     const head = $('.masthead').getBoundingClientRect();
     const read = $('.readouts').getBoundingClientRect();
     const left = Math.min(head.right-cr.left+16,cr.width*.30);
-    const right = panel.left - cr.left - 12;
+    // the controls sit in the bottom-right corner; the notes tab sits top right under the status pill
+    const right = notes.left - cr.left - 12;
     const top = Math.min(head.bottom - cr.top, cr.height * 0.34) * 0.5;
-    const bottom = read.top - cr.top + 24;
+    const bottom = Math.min(read.top, panel.top) - cr.top + 24;
     return { x: left, y: top, w: Math.max(200, right - left), h: Math.max(200, bottom - top) };
   }
   // the camera eases after the whale if it is thrown or dragged far from home (never while holding it)

@@ -2151,10 +2151,12 @@ const DENSITY = 1.3;       // g/cm³, gummy candy
 const $ = s => document.querySelector(s);
 
 function setStatus(text, state) {
-  const el = $('#status');
-  $('#statusText').textContent = text;
-  el.dataset.state = state;
+  // the status pill is optional (the page now shows social links in its place)
+  const el = $('#status'), t = $('#statusText');
+  if (t) t.textContent = text;
+  if (el) el.dataset.state = state;
 }
+const setText = (sel, v) => { const el = $(sel); if (el) el.textContent = v; };
 
 function showFallback(title, detail) {
   const f = $('#fallback');
@@ -2424,12 +2426,12 @@ async function main() {
     const cr = canvas.getBoundingClientRect();
     if (document.body.classList.contains('stacked')) return { x: 0, y: 0, w: cr.width, h: cr.height };
     const panel = $('.panel').getBoundingClientRect();
-    const notes = $('.notes').getBoundingClientRect();
+    const side = ($('.projects') || $('.panel')).getBoundingClientRect();
     const head = $('.masthead').getBoundingClientRect();
     const read = $('.readouts').getBoundingClientRect();
     const left = Math.min(head.right-cr.left+16,cr.width*.30);
-    // the controls sit in the bottom-right corner; the notes tab sits top right under the status pill
-    const right = notes.left - cr.left - 12;
+    // the controls sit in the bottom-right corner; the project card sits in the right-hand column above them
+    const right = side.left - cr.left - 12;
     const top = Math.min(head.bottom - cr.top, cr.height * 0.34) * 0.5;
     const bottom = Math.min(read.top, panel.top) - cr.top + 24;
     return { x: left, y: top, w: Math.max(200, right - left), h: Math.max(200, bottom - top) };
@@ -2813,19 +2815,20 @@ async function main() {
     if (e.key === 'l' || e.key === 'L') lightsBtn.click();
   });
 
-  $('#nParticles').textContent = sim.n.toLocaleString('en');
-  $('#nTets').textContent = sim.nT.toLocaleString('en');
-  $('#nBubbles').textContent = String(renderMesh.bubbleCount);
-  $('#nBaleen').textContent = String(renderMesh.baleenCount);
-  $('#nKrill').textContent = String(KRILL_N);
+  setText('#nParticles', sim.n.toLocaleString('en'));
+  setText('#nTets', sim.nT.toLocaleString('en'));
+  setText('#nBubbles', String(renderMesh.bubbleCount));
+  setText('#nBaleen', String(renderMesh.baleenCount));
+  setText('#nKrill', String(KRILL_N));
   const massOut = $('#massOut'), volOut = $('#volOut'), lenOut = $('#lenOut'), krillOut = $('#krillOut');
   // the mass from the volume enclosed by the jelly's surface (divergence theorem over its triangles)
   let encl = 0;
   { const p = renderMesh.rest; for (let t = 0; t < bodyTriEnd; t += 3) { const a = 3 * index[t], b = 3 * index[t + 1], c = 3 * index[t + 2];
     encl += (p[a] * (p[b + 1] * p[c + 2] - p[b + 2] * p[c + 1]) - p[a + 1] * (p[b] * p[c + 2] - p[b + 2] * p[c]) + p[a + 2] * (p[b] * p[c + 1] - p[b + 1] * p[c])) / 6; } }
-  massOut.textContent = (Math.abs(encl) * SCALE_CM ** 3 * DENSITY).toFixed(1);
+  if (massOut) massOut.textContent = (Math.abs(encl) * SCALE_CM ** 3 * DENSITY).toFixed(1);
   const tS = [0, 0, 0], tF = [0, 0, 0];
   function updateReadouts() {
+    if (!volOut) return; // the readouts live in an optional notes panel
     volOut.textContent = (sim.volumeRatio() * sim.totalRestVolume / vol0 * 100).toFixed(1);
     anchor(A_SNOUT, tS); anchor(A_NOTCH, tF);
     lenOut.textContent = (Math.hypot(tS[0] - tF[0], tS[1] - tF[1], tS[2] - tF[2]) * SCALE_CM).toFixed(1);

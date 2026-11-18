@@ -54,6 +54,12 @@
   .masthead h1 span + span { padding-left: .9em; }
   .caption { font: 400 15px/1.5 var(--serif); color: var(--muted); margin: 0; }
 
+  .socials { position: fixed; top: var(--gutter); right: var(--gutter); display: flex; gap: 6px; z-index: 2; }
+  .social { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px solid var(--line); color: var(--muted);
+    background: var(--panel); transition: color .2s ease, border-color .2s ease, background-color .2s ease; }
+  .social svg { width: 15px; height: 15px; }
+  .social:hover { color: var(--bg); background: var(--ink); border-color: var(--ink); }
+  .social:focus-visible { outline: 1px solid var(--ink); outline-offset: 2px; }
   .status { position: fixed; top: var(--gutter); right: var(--gutter); display: flex; align-items: center; gap: 9px;
     font: 500 10.5px/1 var(--mono); letter-spacing: .14em; color: var(--muted); border: 1px solid var(--line); padding: 7px 10px 7px 9px; }
   .status .dot { width: 7px; height: 7px; border-radius: 50%; border: 1px solid var(--muted); }
@@ -143,8 +149,8 @@
     .experience-row { padding: 6px 0; }
     .experience-label { margin-bottom: 7px; }
   }
-  /* ── projects: a card in the right-hand column, between the notes tab and the controls ── */
-  .projects { position: fixed; right: var(--gutter); top: calc(var(--gutter) + 118px); width: 256px; }
+  /* ── projects: a card in the right-hand column, between the social links and the controls ── */
+  .projects { position: fixed; right: var(--gutter); top: calc(var(--gutter) + 52px); width: 256px; }
   .projects-label { display: block; margin: 0 0 8px; font-size: 9.5px; }
   .project { border: 1px solid var(--line); background: var(--panel); padding: 8px; }
   .project-video { position: relative; aspect-ratio: 16 / 9; background: #1c1b19; border: 1px solid var(--line); overflow: hidden; }
@@ -179,8 +185,9 @@
   /* ── stacked layout for narrow screens ── */
   @media (max-width: 860px), (max-height: 560px) and (max-width: 1000px) {
     body { overflow: auto; }
-    .masthead, .status, .panel, .readouts, .notes, .stage { position: static; }
-    body { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "head status" "stage stage" "read read" "proj proj" "panel panel" "notes notes"; column-gap: 12px; padding: 0 0 var(--gutter); }
+    .masthead, .status, .panel, .readouts, .notes, .stage, .socials { position: static; }
+    .socials { grid-area: social; align-self: start; margin: var(--gutter) var(--gutter) 0 0; }
+    body { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "head social" "stage stage" "read read" "proj proj" "panel panel"; column-gap: 12px; padding: 0 0 var(--gutter); }
     .masthead { grid-area: head; padding: var(--gutter) 0 12px var(--gutter); }
     .masthead .kicker { white-space: nowrap; font-size: 10px; letter-spacing: .15em; }
     .masthead .kicker .eng { display: none; }
@@ -276,7 +283,17 @@
     <p class="caption">A sleepy yellow dragon, cast in clear jelly.<br>Grab his head, belly, arm or tongue<br>and watch the whole body wobble.</p>
   </header>
 
-  <div class="status" id="status" data-state="live" role="status" aria-live="polite"><span class="dot" aria-hidden="true"></span><span id="statusText">THREE.JS · LIVE</span></div>
+  <nav class="socials" aria-label="Social links">
+    <a class="social" href="https://www.linkedin.com/in/aidenzeng/" target="_blank" rel="noopener" aria-label="LinkedIn">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5ZM3 9.75h4v11H3v-11Zm6.5 0h3.83v1.5h.06c.53-.95 1.84-1.95 3.79-1.95 4.05 0 4.82 2.54 4.82 5.84v5.61h-4v-4.97c0-1.19-.02-2.71-1.72-2.71-1.72 0-1.98 1.29-1.98 2.63v5.05h-4v-11Z"/></svg>
+    </a>
+    <a class="social" href="https://github.com/aidenyzeng" target="_blank" rel="noopener" aria-label="GitHub">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.58 9.58 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.69-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 12 2Z"/></svg>
+    </a>
+    <a class="social" href="mailto:aidenzeng927@gmail.com" aria-label="Email aidenzeng927@gmail.com">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.75 5.75h16.5v12.5H3.75z M4.25 6.5 12 12.75l7.75-6.25" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+    </a>
+  </nav>
 
   <aside class="panel" aria-label="Specimen controls">
     <header><span class="label">The Specimen</span><span>fig. 75</span></header>
@@ -353,16 +370,7 @@
     </article>
   </section>
 
-  <details class="notes">
-    <summary><span class="label">Inside the experiment</span></summary>
-    <div class="body">
-      <h3>A Nailong cast in jelly</h3>    <dl class="stats">
-      <div><dt class="label">Mass</dt><dd>≈<span id="massOut">7.6</span><small>g</small></dd></div>
-      <div><dt class="label">Volume</dt><dd><span id="volOut">99.1</span><small>% of rest</small></dd></div>
-      <div><dt class="label">Length</dt><dd><span id="lenOut">6.6</span><small>cm</small></dd></div>
-      <div><dt class="label">Drops</dt><dd><span id="krillOut">0</span><small>loose</small></dd></div>
-    </dl>
-<p>Original artifact engine: <span id="nParticles">0</span> nodes, <span id="nTets">0</span> tetrahedra, <span id="nBubbles">0</span> trapped bubbles.</p><span hidden id="nBaleen"></span><span hidden id="nKrill"></span></div></details></section>
+</section>
 <script>
   // the Sideline clip: hide the "watch" tag once it plays; keep the poster + link if the file is missing
   (() => { const v = document.querySelector('.project-video video'); if (!v) return;
@@ -370,4 +378,4 @@
     v.addEventListener('error', () => v.parentElement.classList.remove('is-playing'), true); })();
 </script>
 <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js" } }</script>
-<script type="module" src="./nailong.js?v=projects-1"></script></body></html>
+<script type="module" src="./nailong.js?v=socials-1"></script></body></html>

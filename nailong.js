@@ -2426,7 +2426,7 @@ async function main() {
     const cr = canvas.getBoundingClientRect();
     if (document.body.classList.contains('stacked')) return { x: 0, y: 0, w: cr.width, h: cr.height };
     const panel = $('.panel').getBoundingClientRect();
-    const side = ($('.projects') || $('.panel')).getBoundingClientRect();
+    const side = ($('.side') || $('.panel')).getBoundingClientRect();
     const head = $('.masthead').getBoundingClientRect();
     const read = $('.readouts').getBoundingClientRect();
     const left = Math.min(head.right-cr.left+16,cr.width*.30);

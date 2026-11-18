@@ -223,7 +223,7 @@ function roundedBodySD(x,y,z,rx,ry,rz,p){
  return (k-1)/Math.max(g,1e-6);
 }
 const NAILONG_EYES=[{x:-.92,y:1.28,rx:.15,ry:.165,gazeY:-.035},{x:-.83,y:.44,rx:.14,ry:.155,gazeY:.035}].map(e=>({...e,z:.03+.73*Math.pow(1-Math.abs((e.x+.79)/1.02)**2.20-Math.abs((e.y-.86)/.94)**2.20,1/2.20)}));
-function nailongSolid(x,y,z,renderArm=false){
+function nailongSolid(x,y,z,renderArm=false,sockets=true){
  let d=roundedBodySD(x+.79,y-.86,z-.03,1.02,.94,.73,2.20);
  d=smin(d,roundedBodySD(x-.69,y-.76,z+.12,1.04,.77,.55,2.35),.12);
  // shoulder behind the head and the long arm resting over the chest
@@ -233,7 +233,8 @@ function nailongSolid(x,y,z,renderArm=false){
  d=smin(d,sdEllipsoid(x-1.43,y-.20,z-.16,.23,.20,.22),.045);
  d=smin(d,sdEllipsoid(x-1.46,y-.53,z+.20,.25,.23,.23),.045);
  // Shallow sockets leave a soft yellow lid around each eye without piercing the head.
- for(const e of NAILONG_EYES)d=smax(d,-sdEllipsoid(x-e.x,y-e.y,z-e.z-.022,e.rx*1.10,e.ry*1.10,.055),.008);
+ // The blend is wider than the render grid (0.024) so the lid rim meshes as a smooth curve, not a jagged crease.
+ if(sockets)for(const e of NAILONG_EYES)d=smax(d,-sdEllipsoid(x-e.x,y-e.y,z-e.z-.022,e.rx*1.10,e.ry*1.10,.055),.035);
  return d;
 }
 function cavitySD(x,y,z){return sdEllipsoid(x+.25,y-.83,z-.77,.28,.49,.30);}
@@ -408,6 +409,8 @@ function tetVolume(p, a, b, c, d) {
 
 // a point on the outer surface: straight down from above at (x, z), or straight out from the midline at (x, y)
 function surfaceDown(x, z) { let lo = -0.01, hi = 1.0; for (let k = 0; k < 40; k++) { const m = (lo + hi) / 2; if (whaleSD(x, m, z) < 0) lo = m; else hi = m; } return [x, lo, z]; }
+// the head's surface with no eye sockets cut in (the eyes must stay under it)
+function headOut(x,y){let lo=0,hi=1.3;for(let k=0;k<40;k++){const m=(lo+hi)/2;if(smax(nailongSolid(x,y,m,false,false),-y,.055)<0)lo=m;else hi=m;}return lo;}
 function surfaceOut(x, y) { let lo = 0, hi = 1.3; for (let k = 0; k < 40; k++) { const m = (lo + hi) / 2; if (whaleSD(x, y, m) < 0) lo = m; else hi = m; } return [x, y, lo]; }
 
 // the eye (z > 0 side; mirrored for the other): a small bead on the side of the head, just over the corner of the mouth
@@ -498,7 +501,9 @@ function buildRenderMesh(){
    const v0=pos.length/3,anchor=surfaceOut(E.x,E.y),rings=14,segs=64;
    const point=(u,v)=>{
      const x=E.x+E.rx*u*(u<0?.72:1)+.012*v*v,y=E.y+E.ry*v;
-     const z=surfaceOut(x,y)[2]+.005+.020*Math.max(0,1-u*u-v*v);
+     // Fill the socket but stay inside the un-socketed head, so the eye never pokes past the outline at grazing views.
+     const zs=surfaceOut(x,y)[2],zp=headOut(x,y);
+     const z=Math.max(zs+.003,Math.min(zs+.005+.020*Math.max(0,1-u*u-v*v),zp-.004));
      return [x,y,z];
    };
    const vertex=(u,v)=>{
@@ -2167,7 +2172,7 @@ async function main() {
 
   // ── build everything once ──
   let cached;
-  try{cached=await fetch('./nailong-mesh.json?v=belly-painted-1').then(r=>{if(!r.ok)throw Error('mesh cache unavailable');return r.json();});}catch{cached={simMesh:buildSimMesh(.24),renderMesh:buildRenderMesh()};}
+  try{cached=await fetch('./nailong-mesh.json?v=eye-flush-1').then(r=>{if(!r.ok)throw Error('mesh cache unavailable');return r.json();});}catch{cached={simMesh:buildSimMesh(.24),renderMesh:buildRenderMesh()};}
   const simMesh=cached.simMesh,renderMesh=cached.renderMesh;
   simMesh.rest=new Float32Array(simMesh.rest);simMesh.tets=new Uint32Array(simMesh.tets);simMesh.region=new Uint8Array(simMesh.region);
   for(const key of ['rest','restNormal','mat','ctr'])renderMesh[key]=new Float32Array(renderMesh[key]);renderMesh.index=new Uint32Array(renderMesh.index);
@@ -2262,11 +2267,50 @@ async function main() {
   const smoothVertices=[];surfaceAdj.forEach((n,i)=>{if(n.size)smoothVertices.push(i);});
   const displacementA=new Float32Array(kv0*3),displacementB=new Float32Array(kv0*3);
   const detailFrames=(renderMesh.surfaceDetails||[]).map(detail=>{let nearest=0,best=Infinity;for(let v=0;v<renderMesh.bodyVertCount;v++){const k=v*3,d=(renderMesh.rest[k]-detail.anchor[0])**2+(renderMesh.rest[k+1]-detail.anchor[1])**2+(renderMesh.rest[k+2]-detail.anchor[2])**2;if(d<best){nearest=v;best=d;}}return {...detail,nearest,tet:emb.tetOf[nearest]};});
-  const conformEyes=detailFrames.filter(f=>f.conform).map(f=>({...f,skin:Array.from({length:f.nv},(_,i)=>{
-    const v=f.v0+i,k=v*3;let nearest=0,best=Infinity;
-    for(let j=0;j<renderMesh.bodyVertCount;j++){const q=j*3,d=(renderMesh.rest[k]-renderMesh.rest[q])**2+(renderMesh.rest[k+1]-renderMesh.rest[q+1])**2+(renderMesh.rest[k+2]-renderMesh.rest[q+2])**2;if(d<best){nearest=j;best=d;}}
-    return nearest;
-  })}));
+  // Each eye vertex rides the skin triangle beneath it (barycentric weights + a fixed height along the smoothed
+  // normal). Copying a single nearest skin vertex let neighbouring eye points drift apart and sink under the jelly.
+  const conformEyes=detailFrames.filter(f=>f.conform).map(f=>{
+    const RP=renderMesh.rest,tris=[];
+    for(let t=0;t<bodyTriEnd;t+=3){const a=index[t]*3;if(Math.hypot(RP[a]-f.anchor[0],RP[a+1]-f.anchor[1],RP[a+2]-f.anchor[2])<.35)tris.push(t);}
+    const tri=new Int32Array(f.nv),bw=new Float32Array(f.nv*3),hgt=new Float32Array(f.nv);
+    for(let i=0;i<f.nv;i++){
+      const k=(f.v0+i)*3,px=RP[k],py=RP[k+1],pz=RP[k+2];let best=Infinity;
+      for(const t of tris){
+        const a=index[t]*3,b=index[t+1]*3,c=index[t+2]*3;
+        const abx=RP[b]-RP[a],aby=RP[b+1]-RP[a+1],abz=RP[b+2]-RP[a+2],acx=RP[c]-RP[a],acy=RP[c+1]-RP[a+1],acz=RP[c+2]-RP[a+2];
+        let nx=aby*acz-abz*acy,ny=abz*acx-abx*acz,nz=abx*acy-aby*acx;const nl=Math.hypot(nx,ny,nz)||1;nx/=nl;ny/=nl;nz/=nl;
+        const apx=px-RP[a],apy=py-RP[a+1],apz=pz-RP[a+2],h=apx*nx+apy*ny+apz*nz;
+        const qx=apx-nx*h,qy=apy-ny*h,qz=apz-nz*h;
+        const d00=abx*abx+aby*aby+abz*abz,d01=abx*acx+aby*acy+abz*acz,d11=acx*acx+acy*acy+acz*acz,d20=qx*abx+qy*aby+qz*abz,d21=qx*acx+qy*acy+qz*acz,den=d00*d11-d01*d01||1e-12;
+        let v=(d11*d20-d01*d21)/den,w=(d00*d21-d01*d20)/den;
+        const out=Math.max(0,-v)+Math.max(0,-w)+Math.max(0,v+w-1);
+        const score=out*10+Math.abs(h);
+        if(score<best){best=score;v=Math.min(Math.max(v,0),1);w=Math.min(Math.max(w,0),1-v);tri[i]=t;bw[3*i]=1-v-w;bw[3*i+1]=v;bw[3*i+2]=w;}
+      }
+      // height above the interpolated surface point, along the interpolated rest normal
+      const t=tri[i],a=index[t]*3,b=index[t+1]*3,c=index[t+2]*3,w0=bw[3*i],w1=bw[3*i+1],w2=bw[3*i+2],RN=renderMesh.restNormal;
+      const sx=RP[a]*w0+RP[b]*w1+RP[c]*w2,sy=RP[a+1]*w0+RP[b+1]*w1+RP[c+1]*w2,sz=RP[a+2]*w0+RP[b+2]*w1+RP[c+2]*w2;
+      let nx=RN[a]*w0+RN[b]*w1+RN[c]*w2,ny=RN[a+1]*w0+RN[b+1]*w1+RN[c+1]*w2,nz=RN[a+2]*w0+RN[b+2]*w1+RN[c+2]*w2;const nl=Math.hypot(nx,ny,nz)||1;
+      hgt[i]=((px-sx)*nx+(py-sy)*ny+(pz-sz)*nz)/nl;
+    }
+    const eyeTris=[];for(let t=bodyTriEnd;t<index.length;t+=3)if(index[t]>=f.v0&&index[t]<f.v0+f.nv)eyeTris.push(t);
+    return {...f,tri,bw,hgt,eyeTris};
+  });
+  const placeEyes=()=>{for(const f of conformEyes){
+    for(let i=0;i<f.nv;i++){
+      const o=(f.v0+i)*D,t=f.tri[i],A=index[t]*D,B=index[t+1]*D,C=index[t+2]*D,w0=f.bw[3*i],w1=f.bw[3*i+1],w2=f.bw[3*i+2];
+      let nx=dyn[A+3]*w0+dyn[B+3]*w1+dyn[C+3]*w2,ny=dyn[A+4]*w0+dyn[B+4]*w1+dyn[C+4]*w2,nz=dyn[A+5]*w0+dyn[B+5]*w1+dyn[C+5]*w2;const l=Math.hypot(nx,ny,nz)||1,h=f.hgt[i]/l;
+      for(let a=0;a<3;a++)dyn[o+a]=dyn[A+a]*w0+dyn[B+a]*w1+dyn[C+a]*w2;
+      dyn[o]+=nx*h;dyn[o+1]+=ny*h;dyn[o+2]+=nz*h;dyn[o+3]=dyn[o+4]=dyn[o+5]=0;
+    }
+    for(const t of f.eyeTris){
+      const a=D*index[t],b=D*index[t+1],c=D*index[t+2];
+      const e1x=dyn[b]-dyn[a],e1y=dyn[b+1]-dyn[a+1],e1z=dyn[b+2]-dyn[a+2],e2x=dyn[c]-dyn[a],e2y=dyn[c+1]-dyn[a+1],e2z=dyn[c+2]-dyn[a+2];
+      const nx=e1y*e2z-e1z*e2y,ny=e1z*e2x-e1x*e2z,nz=e1x*e2y-e1y*e2x;
+      for(const q of [a,b,c]){dyn[q+3]+=nx;dyn[q+4]+=ny;dyn[q+5]+=nz;}
+    }
+    for(let i=0;i<f.nv;i++){const o=(f.v0+i)*D,l=Math.hypot(dyn[o+3],dyn[o+4],dyn[o+5])||1;dyn[o+3]/=l;dyn[o+4]/=l;dyn[o+5]/=l;}
+  }};
   const nsm = new Float32Array(kv0 * 3);
   const kp = [0, 0, 0], ka = [0, 0, 0], kb = [0, 0, 0];
   const krillAt = (i, t, out) => {
@@ -2331,10 +2375,6 @@ async function main() {
       for(const v of smoothVertices){const k=v*3;displacementA[k]=displacementB[k];displacementA[k+1]=displacementB[k+1];displacementA[k+2]=displacementB[k+2];}
     }
     for(const v of smoothVertices){const k=v*3,o=v*D;for(let a=0;a<3;a++)dyn[o+a]=renderMesh.rest[k+a]+displacementA[k+a];}
-    for(const f of conformEyes)for(let i=0;i<f.nv;i++){
-      const v=f.v0+i,k=v*3,o=v*D,b=f.skin[i]*3;
-      for(let a=0;a<3;a++)dyn[o+a]=renderMesh.rest[k+a]+displacementA[b+a];
-    }
     for (let t = 0; t < index.length; t += 3) {
       const a = D * index[t], b = D * index[t + 1], c = D * index[t + 2];
       const e1x = dyn[b] - dyn[a], e1y = dyn[b + 1] - dyn[a + 1], e1z = dyn[b + 2] - dyn[a + 2];
@@ -2366,6 +2406,7 @@ async function main() {
       nsm.fill(0);smooth(0,bodyTriEnd);smooth(coreFirst,coreEnd);
       for(const v of smoothVertices){const k=v*3,l=Math.hypot(nsm[k],nsm[k+1],nsm[k+2]);if(l>1e-9){dyn[D*v+3]=nsm[k]/l;dyn[D*v+4]=nsm[k+1]/l;dyn[D*v+5]=nsm[k+2]/l;}}
     }
+    placeEyes();
     for(const f of detailFrames){
       if(f.conform)continue;
       const q=f.tet*4,qx=sim.tetRot[q],qy=sim.tetRot[q+1],qz=sim.tetRot[q+2],qw=sim.tetRot[q+3];

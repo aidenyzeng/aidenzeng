@@ -143,6 +143,26 @@
     .experience-row { padding: 6px 0; }
     .experience-label { margin-bottom: 7px; }
   }
+  /* ── projects: a card in the right-hand column, between the notes tab and the controls ── */
+  .projects { position: fixed; right: var(--gutter); top: calc(var(--gutter) + 118px); width: 256px; }
+  .projects-label { display: block; margin: 0 0 8px; font-size: 9.5px; }
+  .project { border: 1px solid var(--line); background: var(--panel); padding: 8px; }
+  .project-video { position: relative; aspect-ratio: 16 / 9; background: #1c1b19; border: 1px solid var(--line); overflow: hidden; }
+  .project-video video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+  /* until the clip plays (or if it is missing), the poster links out to the demo on YouTube */
+  .project-watch { position: absolute; left: 8px; bottom: 8px; padding: 5px 8px; font: 500 9.5px/1 var(--sans); letter-spacing: .16em; text-transform: uppercase;
+    color: #fff; background: rgba(28, 27, 25, .72); text-decoration: none; }
+  .project-watch:hover { background: #1c1b19; }
+  .project-video.is-playing .project-watch { opacity: 0; pointer-events: none; transition: opacity .3s ease; }
+  .project-body { padding: 10px 4px 2px; }
+  .project-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .project h3 { margin: 0; font: italic 400 19px/1.15 var(--serif); letter-spacing: -.015em; }
+  .project-link { color: var(--muted); display: inline-flex; padding: 2px; }
+  .project-link:hover { color: var(--ink); }
+  .project-link:focus-visible { outline: 1px solid var(--ink); outline-offset: 2px; }
+  .project p { margin: 5px 0 8px; font: 13.5px/1.35 var(--serif); color: var(--body-ink); }
+  .project-tags { font: 10px/1 var(--mono); color: var(--muted); letter-spacing: .04em; }
+  .notes { z-index: 2; }
   /* ── notes ── */
   .notes { position: fixed; right: var(--gutter); bottom: var(--gutter); width: 300px; border: 1px solid var(--line); background: var(--panel-strong); }
   .notes summary { list-style: none; cursor: pointer; padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; }
@@ -160,7 +180,7 @@
   @media (max-width: 860px), (max-height: 560px) and (max-width: 1000px) {
     body { overflow: auto; }
     .masthead, .status, .panel, .readouts, .notes, .stage { position: static; }
-    body { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "head status" "stage stage" "read read" "panel panel" "notes notes"; column-gap: 12px; padding: 0 0 var(--gutter); }
+    body { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "head status" "stage stage" "read read" "proj proj" "panel panel" "notes notes"; column-gap: 12px; padding: 0 0 var(--gutter); }
     .masthead { grid-area: head; padding: var(--gutter) 0 12px var(--gutter); }
     .masthead .kicker { white-space: nowrap; font-size: 10px; letter-spacing: .15em; }
     .masthead .kicker .eng { display: none; }
@@ -181,6 +201,8 @@
     .stats dd { font-size: 18px; }
     .panel { grid-area: panel; width: auto; margin: 14px var(--gutter) 0; background: transparent; }
     .notes { grid-area: notes; width: auto; margin: 14px var(--gutter) 0; background: transparent; }
+    .projects { position: static; grid-area: proj; width: auto; margin: 18px var(--gutter) 0; }
+    .project p { font-size: 15px; }
     .notes .body { max-height: none; }
   }
   @media (max-height: 760px) and (min-width: 861px) {
@@ -311,6 +333,26 @@
     </article>
   </section>
 
+  <section class="projects" aria-label="Projects">
+    <h2 class="label projects-label">Projects</h2>
+    <article class="project">
+      <div class="project-video">
+        <video src="./assets/projects/sideline.mp4" poster="./assets/projects/sideline-poster.jpg" autoplay muted loop playsinline preload="auto" aria-label="Sideline demo video"></video>
+        <a class="project-watch" href="https://youtu.be/yBbAu-VU0r8" target="_blank" rel="noopener">Watch the demo</a>
+      </div>
+      <div class="project-body">
+        <div class="project-heading">
+          <h3>Sideline</h3>
+          <a class="project-link" href="https://youtu.be/yBbAu-VU0r8" target="_blank" rel="noopener" aria-label="Watch the Sideline demo on YouTube">
+            <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"/></svg>
+          </a>
+        </div>
+        <p>Sports companion that watches your screen and answers questions about the game in real time.</p>
+        <span class="project-tags">YOLO · OpenCV</span>
+      </div>
+    </article>
+  </section>
+
   <details class="notes">
     <summary><span class="label">Inside the experiment</span></summary>
     <div class="body">
@@ -321,5 +363,11 @@
       <div><dt class="label">Drops</dt><dd><span id="krillOut">0</span><small>loose</small></dd></div>
     </dl>
 <p>Original artifact engine: <span id="nParticles">0</span> nodes, <span id="nTets">0</span> tetrahedra, <span id="nBubbles">0</span> trapped bubbles.</p><span hidden id="nBaleen"></span><span hidden id="nKrill"></span></div></details></section>
+<script>
+  // the Sideline clip: hide the "watch" tag once it plays; keep the poster + link if the file is missing
+  (() => { const v = document.querySelector('.project-video video'); if (!v) return;
+    v.addEventListener('playing', () => v.parentElement.classList.add('is-playing'));
+    v.addEventListener('error', () => v.parentElement.classList.remove('is-playing'), true); })();
+</script>
 <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js" } }</script>
-<script type="module" src="./nailong.js?v=panel-bottom-1"></script></body></html>
+<script type="module" src="./nailong.js?v=projects-1"></script></body></html>

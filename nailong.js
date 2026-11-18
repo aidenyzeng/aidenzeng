@@ -2224,9 +2224,11 @@ function unpackMesh(buf){
 // a little filtered noise for wetness. Grabbing squelches, pulling makes quiet squish ticks, letting go blops, and
 // the wobble afterwards gives a "blub" on each swing, quieter as it settles. Starts on the first click/touch.
 function createJellyAudio(testCtx = null) { // testCtx: an OfflineAudioContext, for measuring levels
-  let ctx = null, master = null, wet = null, enabled = true, noiseBuf = null;
+  let ctx = null, master = null, wet = null, enabled = false, noiseBuf = null;
   let lastSway = 0, lastBlub = 0, swingSign = 0, tickAcc = 0, lastStretch = 0, lastMotion = 0, blubs = 0, ticks = 0;
-  try { enabled = localStorage.getItem('jelly-sound') !== 'off'; } catch (_) { /* storage blocked */ }
+  // off by default; only a visitor who ticks the Sound box gets sound (remembered per browser)
+  enabled = false;
+  try { enabled = localStorage.getItem('jelly-sound') === 'on'; } catch (_) { /* storage blocked */ }
   const rnd = (a, b) => a + Math.random() * (b - a);
   function ensure() {
     if (ctx || !enabled) return ctx;

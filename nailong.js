@@ -2219,6 +2219,101 @@ function unpackMesh(buf){
   return out;
 }
 
+// ── sound: soft, wet jelly noises synthesized with Web Audio (no files, no continuous tones) ──
+// Every sound is a short burst: tiny bubble "blops" (a sine that glides upward, like a drop into water) layered with
+// a little filtered noise for wetness. Grabbing squelches, pulling makes quiet squish ticks, letting go blops, and
+// the wobble afterwards gives a "blub" on each swing, quieter as it settles. Starts on the first click/touch.
+function createJellyAudio(testCtx = null) { // testCtx: an OfflineAudioContext, for measuring levels
+  let ctx = null, master = null, wet = null, enabled = true, noiseBuf = null;
+  let lastSway = 0, lastBlub = 0, swingSign = 0, tickAcc = 0, lastStretch = 0, lastMotion = 0, blubs = 0, ticks = 0;
+  try { enabled = localStorage.getItem('jelly-sound') !== 'off'; } catch (_) { /* storage blocked */ }
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  function ensure() {
+    if (ctx || !enabled) return ctx;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC && !testCtx) return null;
+    ctx = testCtx || new AC();
+    master = ctx.createGain(); master.gain.value = 0.45; // grab/release peak around −20 dBFS: present but soft
+    // a gentle low-pass on everything keeps it soft and round rather than clicky
+    const tone = ctx.createBiquadFilter(); tone.type = 'lowpass'; tone.frequency.value = 4200; tone.Q.value = 0.5;
+    const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -24; comp.ratio.value = 3; comp.knee.value = 12;
+    master.connect(tone); tone.connect(comp); comp.connect(ctx.destination);
+    wet = master;
+    noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    return ctx;
+  }
+  function wake() { const c = ensure(); if (c && c.state === 'suspended' && !testCtx) c.resume().catch(() => {}); return c && c.state !== 'closed' ? c : null; }
+  // one bubble pop: the pitch glides up as the "drop" closes; short and rounded
+  function blop(t, f, gain, dur = rnd(0.07, 0.11), rise = rnd(1.6, 2.2)) {
+    const o = ctx.createOscillator(); o.type = 'sine';
+    o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * rise, t + dur * 0.8);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(gain, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(wet); o.start(t); o.stop(t + dur + 0.02);
+  }
+  // the wet part: a soft "schlp" of filtered noise, swept down
+  function schlp(t, gain, dur = 0.09, f0 = 2600, f1 = 500) {
+    const src = ctx.createBufferSource(); src.buffer = noiseBuf;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 6;
+    lp.frequency.setValueAtTime(f0, t); lp.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(gain, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(lp); lp.connect(g); g.connect(wet); src.start(t, rnd(0, 0.8)); src.stop(t + dur + 0.02);
+  }
+  const ok = () => enabled && wake() && ctx.state !== 'closed';
+  return {
+    get enabled() { return enabled; },
+    get debug() { return ctx ? { state: ctx.state, motion: lastMotion, blubs, ticks } : null; },
+    setEnabled(on) {
+      enabled = on;
+      try { localStorage.setItem('jelly-sound', on ? 'on' : 'off'); } catch (_) { /* storage blocked */ }
+      if (!on && ctx) ctx.suspend(); else if (on) wake();
+    },
+    unlock() { if (enabled) wake(); },
+    // grab: a squelch, a soft schlp with two or three small bubbles in it
+    squish(k = 1) {
+      if (!ok()) return; const t = ctx.currentTime + 0.005;
+      schlp(t, 0.16 * k, 0.11);
+      const n = 2 + (Math.random() < 0.5 ? 1 : 0);
+      for (let i = 0; i < n; i++) blop(t + i * rnd(0.018, 0.03), rnd(260, 420), rnd(0.12, 0.2) * k);
+    },
+    // let go: one round blop, bigger (lower, louder) after a bigger pull
+    thwap(k = 1) {
+      if (!ok()) return; const t = ctx.currentTime + 0.005, s = Math.min(1, k);
+      blop(t, 210 - 60 * s, 0.22 + 0.16 * s, 0.13 + 0.05 * s, 1.9);
+      schlp(t + 0.01, 0.07 + 0.06 * s, 0.08, 1800, 400);
+    },
+    // the Jiggle button: a quick wobbly blub-blub-blub
+    jiggle() { if (!ok()) return; const t = ctx.currentTime + 0.005; for (let i = 0; i < 3; i++) blop(t + i * 0.085, 230 - i * 22, 0.18 - i * 0.04); },
+    // a loose drop leaving or landing: a tiny high blip
+    plip(k = 1) { if (!ok()) return; blop(ctx.currentTime + 0.005, rnd(650, 1000), 0.08 * k, 0.05, 1.5); },
+    // every frame: motion = how hard the jelly is moving, sway = which way the front is swinging,
+    // stretch = how far the held patch is pulled (holding true while grabbed)
+    update(motion, sway, stretch, holding) {
+      lastMotion = motion;
+      if (!ctx || !enabled || (ctx.state !== 'running' && !testCtx)) { lastSway = sway; lastStretch = stretch; return; }
+      const t = ctx.currentTime, now = performance.now();
+      // wobble: one soft blub each time the swing changes direction, while there is real motion
+      const sign = sway > 0.02 ? 1 : sway < -0.02 ? -1 : 0;
+      if (!holding && sign && sign !== swingSign && motion > 0.12 && now - lastBlub > 110) {
+        const k = Math.tanh((motion - 0.12) / 1.2);
+        blop(t + 0.005, rnd(150, 210) + 60 * (1 - k), 0.05 + 0.17 * k, rnd(0.08, 0.12), rnd(1.5, 1.9));
+        if (k > 0.35) schlp(t + 0.01, 0.04 * k, 0.06, 1600, 450);
+        lastBlub = now; blubs++;
+      }
+      if (sign) swingSign = sign;
+      // pulling: quiet squish ticks as the patch stretches further (or relaxes back)
+      if (holding) {
+        tickAcc += Math.abs(stretch - lastStretch);
+        if (tickAcc > 0.07) { tickAcc = 0; ticks++; blop(t + 0.005, rnd(300, 480) + 120 * Math.min(1, stretch), rnd(0.05, 0.08), 0.06, rnd(1.3, 1.6)); }
+      } else tickAcc = 0;
+      lastSway = sway; lastStretch = stretch;
+    },
+  };
+}
+
 async function main() {
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const canvas = $('#gl');
@@ -2243,6 +2338,7 @@ async function main() {
     sim.setPouch(disp);
   }
   const vol0 = sim.totalRestVolume;
+  const audio = createJellyAudio();
   const drops = new DropSet(dropList, sim);
   const skinIdx = new Uint32Array(nV * 4);
   for (let v = 0; v < kv0; v++) for (let k = 0; k < 4; k++) skinIdx[4 * v + k] = simMesh.tets[4 * emb.tetOf[v] + k];
@@ -2628,7 +2724,10 @@ async function main() {
   function applyDrag(x, y) {
     const q = dragTarget(x, y);
     if (!q) return;
-    if (drag.mode === 'grab') sim.moveGrab(q, rotMat(cam.fwd, drag.twist));
+    if (drag.mode === 'grab') {
+      sim.moveGrab(q, rotMat(cam.fwd, drag.twist));
+      if (drag.grabStart) drag.stretch = Math.hypot(q[0] - drag.grabStart[0], q[1] - drag.grabStart[1], q[2] - drag.grabStart[2]);
+    }
     else if (drag.mode === 'drop') {
       const A = drops.list[drag.drop], o = drag.grabOff || [0, 0, 0];
       q[0] += o[0]; q[1] += o[1]; q[2] += o[2];
@@ -2653,6 +2752,7 @@ async function main() {
     }
     if (drag.mode) return;
     if (e.button !== undefined && e.button > 0 && e.pointerType === 'mouse') return;
+    audio.unlock();
     drag.id = e.pointerId; drag.lastX = e.clientX; drag.lastY = e.clientY;
     try { canvas.setPointerCapture(e.pointerId); } catch (_) { /* synthetic pointer */ }
     canvas.dataset.cursor = 'grabbing';
@@ -2667,6 +2767,7 @@ async function main() {
       const q0 = dragTarget(e.clientX, e.clientY) || c.slice();
       drag.grabOff = [c[0] - q0[0], c[1] - q0[1], c[2] - q0[2]];
       A.held = true; A.target = c; A.sleep = 0;
+      audio.plip(0.8);
       return;
     }
     const hit = bt < Infinity ? [ray.o[0] + ray.d[0] * bt, ray.o[1] + ray.d[1] * bt, ray.o[2] + ray.d[2] * bt] : pickNear(e.clientX, e.clientY, e.pointerType === 'touch' ? 34 : 18);
@@ -2675,6 +2776,8 @@ async function main() {
       drag.plane = { p: hit, n: cam.fwd.slice() };
       sim.beginGrab(hit, 0.36);
       startle(hit, 0.9);
+      drag.grabStart = hit.slice(); drag.stretch = 0;
+      audio.squish();
     } else {
       drag.mode = 'orbit';
       canvas.dataset.cursor = 'orbit';
@@ -2699,8 +2802,8 @@ async function main() {
   const endPointer = e => {
     if (drag.second && e.pointerId === drag.second.id) { drag.second = null; return; }
     if (e.pointerId !== drag.id) return;
-    if (drag.mode === 'grab') sim.endGrab();
-    if (drag.mode === 'drop') drops.list[drag.drop].held = false;
+    if (drag.mode === 'grab') { sim.endGrab(); audio.thwap(Math.min(1.2, 0.45 + (drag.stretch || 0))); drag.stretch = 0; drag.grabStart = null; }
+    if (drag.mode === 'drop') { drops.list[drag.drop].held = false; audio.plip(0.6); }
     drag.mode = null; drag.id = -1; drag.second = null; drag.drop = -1;
     canvas.dataset.cursor = '';
     hoverDirty = true;
@@ -2748,6 +2851,7 @@ async function main() {
   let spouts = 0;
   function blow() {
     if (state.paused) return;
+    for (let i = 0; i < 4; i++) setTimeout(() => audio.plip(0.9), i * 70);
     spout.queue = Math.min(spout.queue + 32, 64);
     spouts++;
     // the whale exhales: the crown of its head dips as the drops leave, and springs back
@@ -2789,7 +2893,7 @@ async function main() {
   //    pouch slowly empties (the water strained out through the baleen) and the krill is carried back to the stomach ──
   const GULP_IN = 0.55, GULP_HOLD = 1.5, GULP_OUT = 2.8, BATCH = 32;
   const pouchAt = t => t < 0 ? 0 : t < GULP_IN ? 1 - (1 - t / GULP_IN) ** 3 : t < GULP_IN + GULP_HOLD ? 1 : 1 - sstep(GULP_IN + GULP_HOLD, GULP_IN + GULP_HOLD + GULP_OUT, t);
-  function gulp(){if(state.paused)return;for(let i=0;i<sim.n;i++){const x=sim.rest[3*i];sim.v[3*i+1]+=Math.sin(x*2.0)*.7;sim.v[3*i+2]+=.25*Math.cos(x*2.0);}}
+  function gulp(){if(state.paused)return;audio.jiggle();for(let i=0;i<sim.n;i++){const x=sim.rest[3*i];sim.v[3*i+1]+=Math.sin(x*2.0)*.7;sim.v[3*i+2]+=.25*Math.cos(x*2.0);}}
   function stepKrill(h) {
     if (state.gulp < 0) return;
     state.gulp += h;
@@ -2807,6 +2911,7 @@ async function main() {
   }
 
   $('#blow').addEventListener('click', blow);
+  { const sb = $('#sound'); if (sb) { sb.checked = audio.enabled; sb.addEventListener('change', () => { audio.setEnabled(sb.checked); if (sb.checked) audio.squish(0.6); }); } }
   $('#gulp').addEventListener('click', gulp);
   $('#reset').addEventListener('click', () => {
     if (drag.mode === 'grab') sim.endGrab();
@@ -2874,7 +2979,7 @@ async function main() {
   }
 
   // expose a small hook for automated checks
-  window.__nailong = { sim, drops, state, cam, pick, pickT, pickDrop, rayFrom, renderer, blow, gulp, anchor, dyn, drag, renderMesh, setLights, kState, get fps() { return fps; }, get stepMs() { return stepAvg; }, get spouts() { return spouts; } };
+  window.__nailong = { audio, createJellyAudio, sim, drops, state, cam, pick, pickT, pickDrop, rayFrom, renderer, blow, gulp, anchor, dyn, drag, renderMesh, setLights, kState, get fps() { return fps; }, get stepMs() { return stepAvg; }, get spouts() { return spouts; } };
 
   // one fixed step of everything: the throat, the jelly, the krill, the spout, the loose drops
   function fixedStep() {
@@ -2918,6 +3023,19 @@ async function main() {
     if (Math.abs(goal - state.dark) < 1e-3) state.dark = goal;
     state.flash *= Math.exp(-dt * 1.6);
     skin();
+    {
+      // how much the jelly is moving (RMS node speed relative to its bulk motion) and which way the head sways
+      const v = sim.v, n = sim.n; let mx = 0, my = 0, mz = 0;
+      for (let i = 0; i < n; i++) { mx += v[3 * i]; my += v[3 * i + 1]; mz += v[3 * i + 2]; }
+      mx /= n; my /= n; mz /= n;
+      let e = 0, sw = 0, sn = 0;
+      for (let i = 0; i < n; i++) {
+        const dx = v[3 * i] - mx, dy = v[3 * i + 1] - my, dz = v[3 * i + 2] - mz;
+        e += dx * dx + dy * dy + dz * dz;
+        if (headW[i] < 0.5) { sw += dy; sn++; }
+      }
+      audio.update(state.paused ? 0 : Math.sqrt(e / n), state.paused || !sn ? 0 : sw / sn, drag.stretch || 0, drag.mode === 'grab' && !state.paused);
+    }
     followWhale(dt);
     updateCamera();
     updateLight();

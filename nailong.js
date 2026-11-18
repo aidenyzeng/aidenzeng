@@ -2457,7 +2457,9 @@ async function main() {
     // fit the long body closely: the whale should fill the stage
     const Rh = st ? 1.8 : 1.78, Rv = st ? .95 : .88;
     const t2 = Math.tan(FOV / 2);
-    const dist = Math.max(Rv / (t2 * 0.9 * hf), Rh / (t2 * 0.92 * aspect * wf)) * state.zoom;
+    // on wide screens the creature is drawn at 90% of the size that would fill its safe rect
+    const fill = st ? 1 : 0.9;
+    const dist = Math.max(Rv / (t2 * 0.9 * hf), Rh / (t2 * 0.92 * aspect * wf)) * state.zoom / fill;
     const ce = Math.cos(state.el);
     const eye = [target[0] + dist * Math.sin(state.az) * ce, target[1] + dist * Math.sin(state.el), target[2] + dist * Math.cos(state.az) * ce];
     camera.fov = FOV * 180 / Math.PI; camera.aspect = aspect; camera.near = 0.1; camera.far = 80;

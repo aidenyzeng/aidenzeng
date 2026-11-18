@@ -461,7 +461,9 @@ function buildRenderMesh(){
  const pos=nets.pos.slice(),nrm=nets.nrm.slice(),mat=new Array(pos.length/3).fill(0),idx=nets.idx.slice(),ctr=new Array(pos.length/3*4).fill(0);
  const add=(x,y,z,m,nx,ny,nz,c=null)=>{pos.push(x,y,z);nrm.push(nx,ny,nz);mat.push(m);ctr.push(...(c||[0,0,0,0]));return pos.length/3-1;};
  const bodyIndexCount=idx.length,bodyVertCount=pos.length/3,propStart=idx.length;
- const core=surfaceNets(coreSD,[-.03,-.06,.13,1.26,1.18,.69],.025),cv0=pos.length/3;
+ // The cream belly is painted on the skin by the jelly shader. A separate inner mesh showed twice through the
+ // refracting jelly, poked through the skin (its inset was finer than its grid) and bled into the arm.
+ const core={pos:[],nrm:[],idx:[]},cv0=pos.length/3;
  for(let v=0;v<core.pos.length/3;v++)add(...core.pos.slice(v*3,v*3+3),3,...core.nrm.slice(v*3,v*3+3));
  for(const i of core.idx)idx.push(cv0+i);const coreRange={first:propStart,count:idx.length-propStart};
   const ovoid = (p, u, w, v, a, b, c, m, rings, segs, cv) => {
@@ -1730,6 +1732,24 @@ float tongueUnion(float a,float b,float k) {
   float h=clamp(.5+.5*(b-a)/k,0.0,1.0);
   return mix(b,a,h)-k*h*(1.0-h);
 }
+// the cream belly, painted on the torso's skin in rest space: one oval, only on the torso, never on the arm
+float bellyRounded(vec3 p,vec3 r,float e){
+  vec3 a=max(abs(p/r),vec3(1e-5));
+  float k=pow(pow(a.x,e)+pow(a.y,e)+pow(a.z,e),1.0/e);
+  vec3 g=pow(a,vec3(e-1.0))/r;
+  return (k-1.0)/max(length(g)/pow(k,e-1.0),1e-6);
+}
+float bellyMaskAt(vec3 q){
+  vec2 b=(q.xy-vec2(.70,.56))/vec2(.56,.47);
+  float e=(length(b)-1.0)*.47;
+  float aa=max(fwidth(e),.0008);
+  float m=1.0-smoothstep(-.012-aa,.010+aa,e);
+  m*=1.0-smoothstep(.04,.08,abs(bellyRounded(q-vec3(.69,.76,-.12),vec3(1.04,.77,.55),2.35))); // torso skin only
+  m*=smoothstep(.0,.12,q.z);                                                                    // front face only
+  float arm=tongueEllipsoid(q-vec3(.22,.98,.39),vec3(.27,.44,.24));
+  m*=smoothstep(.09,.15,arm);                                                                   // clear of the arm
+  return m;
+}
 void main() {
   vec3 N = normalize(vN);
   if (!gl_FrontFacing) N = -N;
@@ -1806,6 +1826,10 @@ void main() {
   body = mix(body, body + uMottle.rgb * 0.35, mot * uMottle.w);
   body = mix(body, body * mix(vec3(1.0), jellyT, 0.55) * 0.88, pleat * 0.6);
   body = mix(body, uSkin, max(mouth * 0.75, blowM * 0.85));
+  // the cream belly: an opaque, softly lit patch under the jelly's gloss, so it has one clean outline
+  float belly = bellyMaskAt(Q);
+  vec3 bellyCol = uPale * vec3(1.0, 0.93, 0.66) * (0.97 + 0.03 * fbm(Q * 6.0 + vec3(3.0))) * (amb * 1.1 + vec3(1.0, 0.97, 0.92) * key * 0.6 * clamp((NdL + 0.7) / 1.7, 0.0, 1.0));
+  body = mix(body, bellyCol, belly * 0.92);
 
   // ── surface: Fresnel reflection of the studio + key highlight ──
   vec3 R = reflect(-V, N);
@@ -2143,7 +2167,7 @@ async function main() {
 
   // ── build everything once ──
   let cached;
-  try{cached=await fetch('./nailong-mesh.json?v=shadow-arm-final').then(r=>{if(!r.ok)throw Error('mesh cache unavailable');return r.json();});}catch{cached={simMesh:buildSimMesh(.24),renderMesh:buildRenderMesh()};}
+  try{cached=await fetch('./nailong-mesh.json?v=belly-painted-1').then(r=>{if(!r.ok)throw Error('mesh cache unavailable');return r.json();});}catch{cached={simMesh:buildSimMesh(.24),renderMesh:buildRenderMesh()};}
   const simMesh=cached.simMesh,renderMesh=cached.renderMesh;
   simMesh.rest=new Float32Array(simMesh.rest);simMesh.tets=new Uint32Array(simMesh.tets);simMesh.region=new Uint8Array(simMesh.region);
   for(const key of ['rest','restNormal','mat','ctr'])renderMesh[key]=new Float32Array(renderMesh[key]);renderMesh.index=new Uint32Array(renderMesh.index);

@@ -23,6 +23,9 @@
     color-scheme: light;
   }
   * { box-sizing: border-box; }
+  /* dragging the jelly should never paint text selections across the page */
+  html, body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  img, video { -webkit-user-drag: none; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); transition: background-color .9s ease; }
   /* lights out: the room goes dark and the page with it */
   body.lights-out { --bg: #15181e; --ink: #e9e4da; --muted: #9a958c; --faint: #6f6b64; --line: rgba(233, 228, 218, 0.14); --line-strong: rgba(233, 228, 218, 0.4);

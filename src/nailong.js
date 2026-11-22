@@ -2323,7 +2323,7 @@ async function main() {
   // ── build everything once ──
   let cached;
   // the page starts this download from an inline script in <head>, alongside three.js (see index.html)
-  try{const buf=await (window.__meshBin||fetch('./nailong-mesh.bin?v=mesh-bin-2').then(r=>{if(!r.ok)throw Error('mesh cache unavailable');return r.arrayBuffer();}));cached=unpackMesh(buf);}catch{cached={simMesh:buildSimMesh(.24),renderMesh:buildRenderMesh()};}
+  try{const buf=await (window.__meshBin||fetch('./assets/mesh/nailong-mesh.bin?v=mesh-bin-2').then(r=>{if(!r.ok)throw Error('mesh cache unavailable');return r.arrayBuffer();}));cached=unpackMesh(buf);}catch{cached={simMesh:buildSimMesh(.24),renderMesh:buildRenderMesh()};}
   const simMesh=cached.simMesh,renderMesh=cached.renderMesh;
   simMesh.rest=new Float32Array(simMesh.rest);simMesh.tets=new Uint32Array(simMesh.tets);simMesh.region=new Uint8Array(simMesh.region);
   for(const key of ['rest','restNormal','mat','ctr'])renderMesh[key]=new Float32Array(renderMesh[key]);renderMesh.index=new Uint32Array(renderMesh.index);

@@ -4,7 +4,7 @@
 
 > **Jiggle it.**
 
-**Live:** [personaljello.vercel.app](https://personaljello.vercel.app)
+**Live:** [aidenzeng.ca](https://aidenzeng.ca)
 
 My personal site, with a real-time soft-body jelly creature you can grab, stretch, twist and wobble right in the browser. No physics engine, no build step. It's one HTML page, one hand-written simulation, and a lot of jelly.
 

@@ -7,7 +7,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const src = fs.readFileSync(path.join(__dirname, 'nailong.js'), 'utf8');
+const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'nailong.js'), 'utf8');
 const geometry = src.slice(0, src.indexOf('// ===== physics.js =====')).replace("import * as THREE from 'three';", '');
 const { eyeSkinning } = new Function(geometry + ';return {eyeSkinning};')();
 
@@ -61,8 +61,8 @@ function pack(mesh) {
 
 module.exports = pack;
 if (require.main === module) {
-  const mesh = JSON.parse(fs.readFileSync(path.join(__dirname, 'nailong-mesh.json'), 'utf8'));
+  const mesh = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'assets', 'mesh', 'nailong-mesh.json'), 'utf8'));
   const buf = pack(mesh);
-  fs.writeFileSync(path.join(__dirname, 'nailong-mesh.bin'), buf);
+  fs.writeFileSync(path.join(__dirname, '..', 'assets', 'mesh', 'nailong-mesh.bin'), buf);
   console.log(JSON.stringify({ bytes: buf.length }));
 }

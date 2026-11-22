@@ -27,5 +27,5 @@ function checkMesh(mesh) {
 }
 module.exports = checkMesh;
 if (require.main === module) {
-  console.log(checkMesh(JSON.parse(fs.readFileSync(path.join(__dirname, 'nailong-mesh.json'), 'utf8'))));
+  console.log(checkMesh(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'assets', 'mesh', 'nailong-mesh.json'), 'utf8'))));
 }

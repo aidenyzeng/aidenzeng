@@ -1,8 +1,10 @@
-# personal_jello
+# aidenzeng
 
-![personal_jello — Aiden Zeng's personal site](review/personal-experience-desktop.png)
+![Aiden Zeng's personal site](review/personal-experience-desktop.png)
 
 > **Jiggle it.**
+
+**Live:** [personaljello.vercel.app](https://personaljello.vercel.app)
 
 My personal site, with a real-time soft-body jelly creature you can grab, stretch, twist and wobble right in the browser. No physics engine, no build step. It's one HTML page, one hand-written simulation, and a lot of jelly.
 
@@ -49,8 +51,8 @@ My personal site, with a real-time soft-body jelly creature you can grab, stretc
 ### Run
 
 ```bash
-git clone https://github.com/aidenyzeng/personal_jello.git
-cd personal_jello
+git clone https://github.com/aidenyzeng/aidenzeng.git
+cd aidenzeng
 python3 -m http.server 8000   # or: npx serve .
 ```
 

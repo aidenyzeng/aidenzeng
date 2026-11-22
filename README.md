@@ -1,6 +1,6 @@
 # aidenzeng
 
-![Aiden Zeng's personal site](review/personal-experience-desktop.png)
+![Aiden Zeng's personal site](docs/personal-experience-desktop.png)
 
 > **Jiggle it.**
 
@@ -62,10 +62,10 @@ three.js r170 loads from jsDelivr through an import map, so there's nothing to i
 ### Rebuild the mesh (after editing the shape)
 
 ```bash
-node build-mesh.cjs                 # rebuild the simulation + render mesh
-node build-mesh.cjs --render-only   # keep the physics lattice, update only the visible surface
-node check-mesh.cjs                 # the surface is closed, finite and every detail is attached
-node check-physics.cjs              # the sim settles, survives a grab and recovers its volume
+node scripts/build-mesh.cjs                 # rebuild the simulation + render mesh
+node scripts/build-mesh.cjs --render-only   # keep the physics lattice, update only the visible surface
+node scripts/check-mesh.cjs                 # the surface is closed, finite and every detail is attached
+node scripts/check-physics.cjs              # the sim settles, survives a grab and recovers its volume
 ```
 
 **Checks:**
@@ -80,7 +80,7 @@ node check-physics.cjs              # the sim settles, survives a grab and recov
 2. **Lattice** → the SDF is filled with a hex grid split into tetrahedra (5 per cell). That's what the physics simulates
 3. **Surface** → a separate high-res surface is extracted with surface nets and tied to the lattice with barycentric weights, so it follows every wobble
 4. **Physics** → each frame runs fixed XPBD substeps with co-rotational tet constraints for elasticity, volume constraints so it's nearly incompressible, edge damping for the syrupy feel, plus ground contact with friction
-5. **Pack** → the mesh is baked into a compact quantized binary (`nailong-mesh.bin`, ~2.3 MB, down from a 15 MB JSON) that the page starts fetching before anything else
+5. **Pack** → the mesh is baked into a compact quantized binary (`assets/mesh/nailong-mesh.bin`, ~2.3 MB, down from a 15 MB JSON) that the page starts fetching before anything else
 6. **Render** → three.js shaders measure how thick the jelly is along each view ray to tint the light passing through, all inside a procedural photo studio
 
 ---
@@ -88,15 +88,19 @@ node check-physics.cjs              # the sim settles, survives a grab and recov
 ## 📁 Project Structure
 
 ```
-index.html          the site: layout, styles, specimen panel, experience & projects
-nailong.js          geometry → physics → shaders → renderer → app, in one file
-nailong-mesh.bin    the packed mesh the page loads
-nailong-mesh.json   the build cache (read by --render-only and the checks)
-build-mesh.cjs      regenerates the mesh from the SDF in nailong.js
-pack-mesh.cjs       JSON → quantized binary
-check-*.cjs         mesh and physics sanity checks
-assets/             logos, icons, project media
-review/             before/after screenshots, timing data and verification notes
+index.html                 the site: layout, styles, specimen panel, experience & projects
+src/
+  nailong.js               geometry → physics → shaders → renderer → app, in one file
+assets/
+  mesh/nailong-mesh.bin    the packed mesh the page loads
+  mesh/nailong-mesh.json   the build cache (read by --render-only and the checks)
+  icons/  logos/  projects/
+scripts/
+  build-mesh.cjs           regenerates the mesh from the SDF in src/nailong.js
+  pack-mesh.cjs            JSON → quantized binary
+  check-mesh.cjs           surface sanity check
+  check-physics.cjs        simulation sanity check
+docs/                      before/after screenshots, timing data and verification notes
 ```
 
 ---
